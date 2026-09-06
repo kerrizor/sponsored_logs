@@ -79,7 +79,7 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `ad_prefix`   | `"[AD]"`   | Tag prepended to each message; blank omits it.                 |
 | `ads`         | top 10     | The pool of messages to draw from.                             |
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
-| `store`       | in-memory  | Ledger store adapter for impressions (see Storage below).      |
+| `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
 
 ## How a message is chosen
 
@@ -155,9 +155,11 @@ Initech...                   500     8.00       4.00
 TOTAL                       1500                26.00
 ```
 
-## Storage
+## Tracking impressions
 
-The ledger keeps impressions in a pluggable **store**. The gem computes spend and
+The ledger keeps impressions in a pluggable **store**. By default they live in
+memory and reset when the process restarts; point the ledger at a persistent
+store (such as Redis) to keep them across restarts. The gem computes spend and
 reports on top of each store's `snapshot`, so a store only holds raw tallies.
 
 - `SponsoredLogs::Ledger::Store::Memory` (default) — in-memory, thread-safe, not
