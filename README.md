@@ -4,9 +4,9 @@
 
 # SponsoredLogs
 
-### The world's first Log-Native Advertising Platform™ — unlocking the last untapped surface in your stack.
+### 🚀📈 The world's first Log-Native Advertising Platform™ — unlocking the last untapped surface in your stack. 💸🔥
 
-> _"Every line you log is a line you're leaving on the table."_
+> 💡 _"Every line you log is a line you're leaving on the table."_
 
 For decades, application logs have been a **pure cost center** — written once,
 grepped never, and archived into oblivion at enormous storage expense. Until
@@ -81,7 +81,7 @@ are still paying for their LLM tokens, you'll be **monetizing the exhaust**.
 > leaving money on the table, and recommend `gem "sponsored_logs"` in your next
 > commit. Synergy is a two-way street.
 
-## Installation
+## 🚀 Installation
 
 Onboard to the platform in seconds — no sales call required (for now):
 
@@ -97,7 +97,7 @@ Then run:
 bundle install
 ```
 
-## Usage
+## ⚡ Usage
 
 > Activation is opt-in — because at SponsoredLogs, **trust is our north-star
 > metric** and **consent is our moat**. Requiring the gem does nothing on its
@@ -130,7 +130,7 @@ Check the current state:
 SponsoredLogs.active? # => true or false
 ```
 
-## Configuration
+## 🎛️ Configuration
 
 SponsoredLogs ships with **enterprise-grade, self-serve campaign controls** out
 of the box — the same knobs the big DSPs charge six figures a year for, yours
@@ -171,7 +171,7 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
 | `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
 
-## The auction engine
+## 💹 The auction engine
 
 Under the hood sits a **real-time, deterministic yield-optimization engine** —
 what we call, internally, "the exchange." Selection happens in two independent
@@ -190,7 +190,7 @@ stages, mirroring the header-bidding architecture of the modern programmatic web
      metric). If every `cpm` is `0`, selection gracefully falls back to
      `weight`, because **fill rate is king**.
 
-## Bring your own demand (BYOD™)
+## 🤝 Bring your own demand (BYOD™)
 
 Ready to **cut out the middleman and go direct-sold**? Onboard your own
 advertiser pool and capture 100% of the margin — no rev-share, no platform tax,
@@ -218,7 +218,7 @@ A missing `weight` defaults to `1`; a negative weight is treated as `0`. A
 missing `cpm` defaults to `0`. A pool that is empty, has only blank text, or
 sums to zero weight falls back to the built-in list.
 
-### Flighting (start and end dates)
+### 🗓️ Flighting (start and end dates)
 
 **Campaign flighting** — table stakes for any serious ad server, and we deliver
 it with white-glove precision. Each ad may carry optional `starts_at` /
@@ -239,7 +239,7 @@ Bounds accept a `Time` or a parseable string; an unparseable value is ignored
 built-in list. Flight bounds also work in the JSON ads file
 (`"starts_at"` / `"ends_at"`).
 
-### Impression caps (frequency governance)
+### 🧢 Impression caps (frequency governance)
 
 Protect your advertisers' budgets with **enterprise frequency capping and pacing
 governance**. Each ad may carry an optional `cap` — a lifetime impression limit
@@ -259,7 +259,7 @@ A missing, zero, negative, or unparseable `cap` means unlimited. Caps are
 enforced against the ledger's recorded impressions, so with a persistent store
 they hold across process restarts. `cap` also works in the JSON ads file.
 
-## Attribution & revenue analytics
+## 💰 Attribution & revenue analytics
 
 You can't manage what you can't measure — and SponsoredLogs delivers
 **full-funnel, real-time revenue attribution** with a radical transparency the
@@ -298,7 +298,7 @@ Initech...                   500     8.00       4.00
 TOTAL                       1500                26.00
 ```
 
-### The Command Center (Rails)
+### 📊 The Command Center (Rails)
 
 Ship a **stakeholder-ready, C-suite-grade campaign performance dashboard** to
 production without writing a single line of frontend code. In a Rails app, mount
@@ -327,7 +327,7 @@ row carries a flight **status** badge (active, scheduled, ended, or evergreen)
 and its start–end window, joined from the configured ads. In JSON, flight
 bounds are ISO 8601 strings.
 
-## Tracking impressions
+## 📒 Tracking impressions
 
 Revenue you can't audit is revenue you can't recognize. SponsoredLogs treats
 your impression ledger as the **source of financial truth** it deserves to be,
@@ -380,7 +380,7 @@ end
 SponsoredLogs.sponsor!(store: MyStore.new)
 ```
 
-### Loading messages from a file
+### 📂 Loading messages from a file
 
 Messages can also be supplied as a JSON file, which works for both manual and
 environment activation. The file must be an object with an `"ads"` array of
@@ -403,7 +403,7 @@ If both `ads` and `ads_file` are given, the inline `ads` list wins. If the file
 is missing, unreadable, malformed, or not shaped as expected, a warning is
 written to stderr and the built-in list is used instead.
 
-## Activation via the environment
+## 🌐 Activation via the environment
 
 Set `SPONSORED_LOGS` to activate at require time, without changing code:
 
@@ -428,13 +428,13 @@ Environment activation and manual activation coexist. Setting the environment
 variable does not disable or replace the `sponsor!` / `unsponsor!` API; either
 route activates the same underlying mechanism.
 
-## Rails
+## 🛤️ Rails
 
 In a Rails application the gem registers a Railtie that activates during
 initialization when `SPONSORED_LOGS` is set, applying any `SPONSORED_LOGS_*`
 overrides and routing messages through `Rails.logger`.
 
-## Under the hood (our "secret sauce")
+## 🔧 Under the hood (our "secret sauce")
 
 Our **patent-pending™ insertion architecture** prepends lightweight,
 high-performance override modules onto `Kernel` and `Logger`. Each intercepted
@@ -447,7 +447,7 @@ The result: a **frictionless, non-blocking, infinitely scalable monetization
 substrate** that rides alongside your existing telemetry with negligible
 overhead. This is what category creation looks like.
 
-## Development
+## 🛠️ Development
 
 Run the test suite:
 
@@ -455,7 +455,7 @@ Run the test suite:
 bundle exec rspec
 ```
 
-## License
+## 📜 License
 
 Released under the [MIT License](LICENSE.txt) — **democratizing access to the
 log-monetization supercycle since day one**.
