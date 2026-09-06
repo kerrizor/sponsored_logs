@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.svg" alt="SponsoredLogs — Log-Native Advertising Platform" width="100%">
+</p>
+
 # SponsoredLogs
 
 ### The world's first Log-Native Advertising Platform™ — unlocking the last untapped surface in your stack.
@@ -31,6 +35,17 @@ category we are proud to be defining, evangelizing, and, frankly, _owning_. This
 is not a feature. It is a **land grab for the observability-monetization
 supercycle**. First movers will capture the network effects. Everyone else will
 be paying CPMs, not collecting them.
+
+### A word from our founder
+
+> _"When I first saw a production log stream, I didn't see noise. I saw
+> **inventory**. I saw a billion premium impressions a day, scrolling past the
+> most valuable eyeballs in the enterprise, entirely unmonetized. We didn't
+> build an ad server. We built a movement. And the machines? The machines are
+> just getting started."_
+>
+> — **Founder & Chief Yield Officer**, SponsoredLogs™
+> _Ex-Programmatic. Ex-Observability. Perpetually pre-seed._
 
 > Activation is opt-in — because at SponsoredLogs, **trust is our north-star
 > metric** and **consent is our moat**. Requiring the gem does nothing on its
