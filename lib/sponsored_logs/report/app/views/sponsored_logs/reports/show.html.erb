@@ -18,6 +18,13 @@
     th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     .empty { color: #888; font-style: italic; margin-top: 1.5rem; }
+    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
+         color: #888; margin: 2rem 0 0.5rem; }
+    .chart { display: block; }
+    .chart .bar-label { font-size: 12px; fill: #333; }
+    .chart .bar-value { font-size: 12px; fill: #555; font-variant-numeric: tabular-nums; }
+    .chart .bar-track { fill: #f0f0f3; rx: 4; }
+    .chart .bar-fill { fill: #4f46e5; rx: 4; }
   </style>
 </head>
 <body>
@@ -38,6 +45,13 @@
   <% if @report[:ads].empty? %>
     <p class="empty">No impressions delivered yet.</p>
   <% else %>
+    <h2>Spend by advertiser</h2>
+    <%= bar_chart(@report[:ads], value: ->(ad) { ad[:spend] }, format: ->(v) { "$#{format('%.2f', v)}" }) %>
+
+    <h2>Impressions by advertiser</h2>
+    <%= bar_chart(@report[:ads], value: ->(ad) { ad[:impressions] }, format: ->(v) { v.to_i.to_s }) %>
+
+    <h2>Detail</h2>
     <table>
       <thead>
         <tr>

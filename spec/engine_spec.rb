@@ -51,6 +51,15 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     expect(last_response.body).to include("$2.00") # 100/1000 * 20
   end
 
+  it "renders inline SVG bar charts", :aggregate_failures do
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include("Spend by advertiser")
+    expect(last_response.body).to include("Impressions by advertiser")
+    expect(last_response.body).to include("<svg")
+    expect(last_response.body).to include('class="bar-fill"')
+  end
+
   it "returns JSON via the .json suffix", :aggregate_failures do
     get "/sponsored_logs_report.json"
 
