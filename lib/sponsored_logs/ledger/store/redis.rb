@@ -7,6 +7,7 @@ module SponsoredLogs
         DEFAULT_NAMESPACE = "sponsored_logs"
 
         def initialize(client: nil, namespace: DEFAULT_NAMESPACE)
+          super()
           @client = client || build_default_client
           @impressions_key = "#{namespace}:impressions"
           @cpm_key = "#{namespace}:cpm"

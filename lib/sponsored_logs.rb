@@ -113,27 +113,7 @@ module SponsoredLogs
     # and completed campaigns still appear.
     #
     def report
-      now = Time.now
-      metas = ad_metadata
-      counts = ledger.impression_counts
-      served = ledger.entries.to_h { |entry| [entry.text, entry] }
-
-      texts = (served.keys + metas.keys).uniq
-      grouped = Hash.new { |h, k| h[k] = [] }
-
-      texts.each do |text|
-        meta = metas[text] || {}
-        count = counts[text].to_i
-        status = Advertisers.status(meta, now, count)
-        row = report_row(text, meta, served[text], status)
-
-        case status
-        when :scheduled then grouped[:upcoming] << row
-        when :ended, :exhausted then grouped[:finished] << row
-        else
-          grouped[:running] << row if served[text]
-        end
-      end
+      grouped = grouped_report_rows
 
       {
         impressions: ledger.total_impressions,
@@ -152,15 +132,15 @@ module SponsoredLogs
       rows = data[:ads].sort_by { |ad| -ad[:spend] }
 
       width = rows.map { |ad| ad[:text].length }.push(4).max
-      lines = ["%-#{width}s  %8s  %7s  %9s" % %w[Ad Impr CPM Spend]]
+      lines = [format("%-#{width}s  %8s  %7s  %9s", "Ad", "Impr", "CPM", "Spend")]
       lines << ("-" * (width + 30))
 
       rows.each do |ad|
-        lines << "%-#{width}s  %8d  %7.2f  %9.2f" % [ad[:text], ad[:impressions], ad[:cpm], ad[:spend]]
+        lines << format("%-#{width}s  %8d  %7.2f  %9.2f", ad[:text], ad[:impressions], ad[:cpm], ad[:spend])
       end
 
       lines << ("-" * (width + 30))
-      lines << ("%-#{width}s  %8d  %7s  %9.2f" % ["TOTAL", data[:impressions], "", data[:spend]])
+      lines << format("%-#{width}s  %8d  %7s  %9.2f", "TOTAL", data[:impressions], "", data[:spend])
       lines.join("\n")
     end
 
@@ -175,9 +155,33 @@ module SponsoredLogs
     # used to enrich report rows and drive status.
     #
     def ad_metadata
-      Advertisers.normalize(configuration.ads).each_with_object({}) do |ad, acc|
-        acc[ad[:text]] = ad
+      Advertisers.normalize(configuration.ads).to_h { |ad| [ad[:text], ad] }
+    end
+
+    # Partition every known ad (served or configured) into running / upcoming /
+    # finished report rows by flight-and-cap status.
+    #
+    def grouped_report_rows
+      now = Time.now
+      metas = ad_metadata
+      counts = ledger.impression_counts
+      served = ledger.entries.to_h { |entry| [entry.text, entry] }
+
+      grouped = Hash.new { |h, k| h[k] = [] }
+
+      (served.keys + metas.keys).uniq.each do |text|
+        meta = metas[text] || {}
+        status = Advertisers.status(meta, now, counts[text].to_i)
+        row = report_row(text, meta, served[text], status)
+
+        case status
+        when :scheduled then grouped[:upcoming] << row
+        when :ended, :exhausted then grouped[:finished] << row
+        else grouped[:running] << row if served[text]
+        end
       end
+
+      grouped
     end
 
     # A single report row. Impressions/spend come from the ledger entry when the

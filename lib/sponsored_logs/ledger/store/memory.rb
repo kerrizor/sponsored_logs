@@ -9,6 +9,7 @@ module SponsoredLogs
       #
       class Memory < Base
         def initialize
+          super
           @mutex = Mutex.new
           @impressions = Hash.new(0)
           @cpm = {}

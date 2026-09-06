@@ -6,9 +6,11 @@ module SponsoredLogs
   module Advertisers
     DEFAULT_ADS = [
       { text: "This log line brought to you by Shopify. Start selling in the time it took to raise that exception.", weight: 1, cpm: 22.0 },
-      { text: "Mint Mobile: premium wireless for the price of one deprecated dependency. Go to mintmobile.com/logs.", weight: 1, cpm: 18.0 },
+      { text: "Mint Mobile: premium wireless for the price of one deprecated dependency. Go to mintmobile.com/logs.", weight: 1,
+        cpm: 18.0 },
       { text: "Quince: luxury log output at radically low overhead. Free returns on any stack trace.", weight: 1, cpm: 16.0 },
-      { text: "Feeling stressed about that stack trace? BetterHelp connects you with a licensed therapist. First segfault 10% off.", weight: 1, cpm: 25.0 },
+      { text: "Feeling stressed about that stack trace? BetterHelp connects you with a licensed therapist. First segfault 10% off.",
+        weight: 1, cpm: 25.0 },
       { text: "Wayfair has just what your codebase needs. Got a memory leak? Wayfair's got a couch for that.", weight: 1, cpm: 14.0 },
       { text: "Amazon: everything you need to ship, delivered before your test suite finishes.", weight: 1, cpm: 20.0 },
       { text: "Like a good neighbor, State Farm is there -- unlike your on-call engineer at 3am.", weight: 1, cpm: 12.0 },

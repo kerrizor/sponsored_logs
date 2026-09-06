@@ -208,9 +208,9 @@ RSpec.describe SponsoredLogs do
     it "lists scheduled ads under upcoming, even with zero impressions", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
-        { text: "Live now", weight: 1, cpm: 5 },
-        { text: "Next month", weight: 1, cpm: 8, starts_at: "2999-01-01" }
-      ])
+                                 { text: "Live now", weight: 1, cpm: 5 },
+                                 { text: "Next month", weight: 1, cpm: 8, starts_at: "2999-01-01" }
+                               ])
       described_class.configuration.store.record(text: "Live now", weight: 1, cpm: 5.0)
 
       report = described_class.report
@@ -239,9 +239,9 @@ RSpec.describe SponsoredLogs do
     it "lists ended ads under finished, served or not", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
-        { text: "Ran and ended", weight: 1, cpm: 10, ends_at: "2000-01-01" },
-        { text: "Never ran, ended", weight: 1, cpm: 10, ends_at: "2000-01-01" }
-      ])
+                                 { text: "Ran and ended", weight: 1, cpm: 10, ends_at: "2000-01-01" },
+                                 { text: "Never ran, ended", weight: 1, cpm: 10, ends_at: "2000-01-01" }
+                               ])
       described_class.configuration.store.record(text: "Ran and ended", weight: 1, cpm: 10.0)
 
       finished = described_class.report[:finished]
@@ -257,9 +257,9 @@ RSpec.describe SponsoredLogs do
     it "enriches rows with flight window and status, grouping by status", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
-        { text: "Evergreen", weight: 1, cpm: 5 },
-        { text: "Ended", weight: 1, cpm: 5, ends_at: "2000-01-01" }
-      ])
+                                 { text: "Evergreen", weight: 1, cpm: 5 },
+                                 { text: "Ended", weight: 1, cpm: 5, ends_at: "2000-01-01" }
+                               ])
       # Force both to record regardless of liveness by writing to the store.
       described_class.configuration.store.record(text: "Evergreen", weight: 1, cpm: 5.0)
       described_class.configuration.store.record(text: "Ended", weight: 1, cpm: 5.0)
@@ -305,9 +305,9 @@ RSpec.describe SponsoredLogs do
     it "orders rows by descending spend" do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
-        { text: "cheap", weight: 1, cpm: 1.0 },
-        { text: "pricey", weight: 1, cpm: 99.0 }
-      ], selection: :cpm)
+                                 { text: "cheap", weight: 1, cpm: 1.0 },
+                                 { text: "pricey", weight: 1, cpm: 99.0 }
+                               ], selection: :cpm)
       1000.times { described_class.emit(StringIO.new) }
 
       text = described_class.report_text

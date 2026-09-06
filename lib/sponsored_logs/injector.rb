@@ -16,7 +16,7 @@ module SponsoredLogs
     end
 
     module LoggerPatch
-      def add(severity, message = nil, progname = nil, &block)
+      def add(severity, message = nil, progname = nil, &)
         result = super
         SponsoredLogs.maybe_emit(target: self)
         result

@@ -15,6 +15,7 @@ module SponsoredLogs
       #
       class ActiveRecord < Base
         def initialize(model: nil)
+          super()
           @model = model || build_default_model
         end
 
@@ -35,8 +36,8 @@ module SponsoredLogs
         end
 
         def snapshot
-          @model.all.each_with_object({}) do |row, acc|
-            acc[row.text] = { impressions: row.impressions.to_i, cpm: row.cpm.to_f }
+          @model.all.to_h do |row|
+            [row.text, { impressions: row.impressions.to_i, cpm: row.cpm.to_f }]
           end
         end
 

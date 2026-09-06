@@ -1,0 +1,68 @@
+AllCops:
+  TargetRubyVersion: 3.1
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - "pkg/**/*"
+    - "lib/generators/**/templates/**/*"
+
+# Ad copy and SVG markup are legitimately long lines.
+Layout/LineLength:
+  Max: 140
+
+# Specs and the ad catalog are naturally long; blocks in specs are expected.
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 25
+
+# The main module carries the full public API plus report-building helpers;
+# it is cohesive rather than bloated.
+Metrics/ModuleLength:
+  Max: 160
+
+Metrics/ClassLength:
+  Max: 160
+
+Metrics/AbcSize:
+  Max: 32
+
+# The core coercion/selection methods handle many fields and statuses; the
+# branching is inherent to the domain, not accidental complexity.
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/PerceivedComplexity:
+  Max: 10
+
+# Documentation is in the README, not per-class comments.
+Style/Documentation:
+  Enabled: false
+
+# The codebase uses double-quoted strings consistently.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+# Development dependencies live in the gemspec by design.
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# "ad" is the domain term throughout; short SVG coordinate names (x, y) read
+# naturally in chart-drawing code.
+Naming/MethodParameterName:
+  AllowedNames:
+    - ad
+    - x
+    - y
+    - by
+    - bar_w
+
+# Allow the frozen-string comment to be optional-friendly but keep it enforced.
+Style/FrozenStringLiteralComment:
+  Enabled: true

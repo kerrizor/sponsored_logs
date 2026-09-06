@@ -2,15 +2,7 @@
 
 module SponsoredLogs
   class Configuration
-    attr_accessor :probability
-    attr_accessor :periodic
-    attr_accessor :interval
-    attr_accessor :output
-    attr_accessor :ad_prefix
-    attr_accessor :ads
-    attr_accessor :selection
-    attr_accessor :store
-    attr_accessor :report_page
+    attr_accessor :probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store, :report_page
 
     # Settings that map 1:1 onto an accessor. ads/ads_file are handled
     # separately because they interact (ads wins; ads_file loads into ads).

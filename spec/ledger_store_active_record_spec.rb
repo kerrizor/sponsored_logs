@@ -65,7 +65,7 @@ RSpec.describe SponsoredLogs::Ledger::Store::ActiveRecord do
   end
 
   it "handles long ad text via the digest key" do
-    long = "Sponsored by " + ("x" * 5000)
+    long = "Sponsored by #{"x" * 5000}"
     store.record(text: long, weight: 1, cpm: 3.0)
 
     expect(store.snapshot[long]).to eq(impressions: 1, cpm: 3.0)

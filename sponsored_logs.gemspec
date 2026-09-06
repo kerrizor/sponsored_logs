@@ -31,5 +31,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rack-test", ">= 2.0"
   spec.add_development_dependency "railties", ">= 7.0"
   spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rubocop", "~> 1.60"
   spec.add_development_dependency "sqlite3", ">= 1.6"
+  spec.metadata["rubygems_mfa_required"] = "true"
 end
