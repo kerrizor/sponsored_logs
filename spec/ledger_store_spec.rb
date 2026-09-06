@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe SponsoredLogs::Storage::Base do
+RSpec.describe SponsoredLogs::Ledger::Store::Base do
   it "raises NotImplementedError for the contract methods", :aggregate_failures do
     base = described_class.new
     expect { base.record({}) }.to raise_error(NotImplementedError)
@@ -9,36 +9,36 @@ RSpec.describe SponsoredLogs::Storage::Base do
   end
 end
 
-RSpec.describe SponsoredLogs::Storage::Memory do
-  let(:storage) { described_class.new }
+RSpec.describe SponsoredLogs::Ledger::Store::Memory do
+  let(:store) { described_class.new }
 
   it "records impressions and cpm, keyed by text" do
-    2.times { storage.record(text: "a", weight: 1, cpm: 10.0) }
-    storage.record(text: "b", weight: 1, cpm: 5.0)
+    2.times { store.record(text: "a", weight: 1, cpm: 10.0) }
+    store.record(text: "b", weight: 1, cpm: 5.0)
 
-    expect(storage.snapshot).to eq(
+    expect(store.snapshot).to eq(
       "a" => { impressions: 2, cpm: 10.0 },
       "b" => { impressions: 1, cpm: 5.0 }
     )
   end
 
   it "reset clears the snapshot" do
-    storage.record(text: "a", weight: 1, cpm: 10.0)
-    storage.reset
-    expect(storage.snapshot).to eq({})
+    store.record(text: "a", weight: 1, cpm: 10.0)
+    store.reset
+    expect(store.snapshot).to eq({})
   end
 
   it "records concurrently without losing increments" do
     threads = Array.new(10) do
-      Thread.new { 100.times { storage.record(text: "a", weight: 1, cpm: 1.0) } }
+      Thread.new { 100.times { store.record(text: "a", weight: 1, cpm: 1.0) } }
     end
     threads.each(&:join)
 
-    expect(storage.snapshot["a"][:impressions]).to eq(1000)
+    expect(store.snapshot["a"][:impressions]).to eq(1000)
   end
 end
 
-RSpec.describe SponsoredLogs::Storage::Redis do
+RSpec.describe SponsoredLogs::Ledger::Store::Redis do
   # Minimal in-memory stand-in for the redis client, exercising the exact
   # commands the adapter uses (hincrby/hset/hgetall/del).
   #
@@ -66,21 +66,21 @@ RSpec.describe SponsoredLogs::Storage::Redis do
     end.new
   end
 
-  let(:storage) { described_class.new(client: fake_redis) }
+  let(:store) { described_class.new(client: fake_redis) }
 
   it "records impressions and cpm via the client" do
-    2.times { storage.record(text: "a", weight: 1, cpm: 10.0) }
-    storage.record(text: "b", weight: 1, cpm: 5.0)
+    2.times { store.record(text: "a", weight: 1, cpm: 10.0) }
+    store.record(text: "b", weight: 1, cpm: 5.0)
 
-    expect(storage.snapshot).to eq(
+    expect(store.snapshot).to eq(
       "a" => { impressions: 2, cpm: 10.0 },
       "b" => { impressions: 1, cpm: 5.0 }
     )
   end
 
   it "reset deletes the keys" do
-    storage.record(text: "a", weight: 1, cpm: 10.0)
-    storage.reset
-    expect(storage.snapshot).to eq({})
+    store.record(text: "a", weight: 1, cpm: 10.0)
+    store.reset
+    expect(store.snapshot).to eq({})
   end
 end

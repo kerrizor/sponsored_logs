@@ -12,6 +12,6 @@ RSpec.configure do |config|
     SponsoredLogs.unsponsor!
     SponsoredLogs.instance_variable_set(:@configuration, nil)
     SponsoredLogs.instance_variable_set(:@ledger, nil)
-    SponsoredLogs.instance_variable_set(:@ledger_storage, nil)
+    SponsoredLogs.instance_variable_set(:@ledger_store, nil)
   end
 end

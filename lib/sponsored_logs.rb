@@ -5,10 +5,10 @@ require "logger"
 require_relative "sponsored_logs/version"
 require_relative "sponsored_logs/advertisers"
 require_relative "sponsored_logs/ads_file"
-require_relative "sponsored_logs/storage/base"
-require_relative "sponsored_logs/storage/memory"
-require_relative "sponsored_logs/storage/redis"
-require_relative "sponsored_logs/ledger"
+require_relative "sponsored_logs/ledger/store/base"
+require_relative "sponsored_logs/ledger/store/memory"
+require_relative "sponsored_logs/ledger/store/redis"
+require_relative "sponsored_logs/ledger/report"
 require_relative "sponsored_logs/configuration"
 require_relative "sponsored_logs/injector"
 require_relative "sponsored_logs/env"
@@ -24,14 +24,14 @@ module SponsoredLogs
       configuration
     end
 
-    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil, selection: nil, storage: nil)
+    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil, selection: nil, store: nil)
       configuration.probability = probability unless probability.nil?
       configuration.periodic    = periodic    unless periodic.nil?
       configuration.interval    = interval    unless interval.nil?
       configuration.output      = output      unless output.nil?
       configuration.ad_prefix   = ad_prefix   unless ad_prefix.nil?
       configuration.selection   = selection   unless selection.nil?
-      configuration.storage     = storage     unless storage.nil?
+      configuration.store       = store       unless store.nil?
 
       # An explicit ads: list wins over a file path. A failed load leaves the
       # current list untouched (AdsFile.load already warned).
@@ -96,13 +96,13 @@ module SponsoredLogs
       line
     end
 
-    # Rebuilt when the configured storage adapter changes, so swapping storage
-    # via sponsor!(storage:) takes effect immediately.
+    # Rebuilt when the configured store changes, so swapping the store via
+    # sponsor!(store:) takes effect immediately.
     #
     def ledger
-      if @ledger.nil? || @ledger_storage != configuration.storage
-        @ledger = Ledger.new(configuration.storage)
-        @ledger_storage = configuration.storage
+      if @ledger.nil? || @ledger_store != configuration.store
+        @ledger = Ledger::Report.new(configuration.store)
+        @ledger_store = configuration.store
       end
       @ledger
     end

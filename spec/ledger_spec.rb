@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe SponsoredLogs::Ledger do
-  let(:ledger) { described_class.new(SponsoredLogs::Storage::Memory.new) }
+RSpec.describe SponsoredLogs::Ledger::Report do
+  let(:ledger) { described_class.new(SponsoredLogs::Ledger::Store::Memory.new) }
 
   it "counts impressions per ad text" do
     3.times { ledger.record(text: "a", weight: 1, cpm: 10.0) }
