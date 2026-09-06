@@ -14,15 +14,23 @@ RSpec.describe SponsoredLogs::AdsFile do
   let(:sink) { StringIO.new }
 
   describe ".load" do
-    it "reads the ads array from a well-formed file" do
-      with_file('{"ads": ["one", "two"]}') do |path|
-        expect(described_class.load(path, warn_to: sink)).to eq(%w[one two])
+    it "reads weighted ads from a well-formed file" do
+      with_file('{"ads": [{"text": "one", "weight": 3}, {"text": "two", "weight": 1}]}') do |path|
+        expect(described_class.load(path, warn_to: sink)).to eq(
+          [{ text: "one", weight: 3.0 }, { text: "two", weight: 1.0 }]
+        )
       end
     end
 
-    it "strips blank entries" do
-      with_file('{"ads": ["kept", "", "  "]}') do |path|
-        expect(described_class.load(path, warn_to: sink)).to eq(["kept"])
+    it "defaults a missing weight to 1" do
+      with_file('{"ads": [{"text": "one"}]}') do |path|
+        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "one", weight: 1.0 }])
+      end
+    end
+
+    it "drops entries with blank text" do
+      with_file('{"ads": [{"text": "kept", "weight": 1}, {"text": "  "}]}') do |path|
+        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "kept", weight: 1.0 }])
       end
     end
 

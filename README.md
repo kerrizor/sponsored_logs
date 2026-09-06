@@ -77,16 +77,27 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `interval`    | `30`       | Seconds between periodic insertions.                           |
 | `output`      | `$stdout`  | Where periodic ads are written.                                |
 | `ad_prefix`   | `"[AD]"`   | Tag prepended to each message; blank omits it.                 |
-| `ads`         | top 10     | The pool of messages to draw from.                             |
+| `ads`         | top 10     | The weighted pool of messages to draw from.                    |
+
+## How a message is chosen
+
+Selection happens in two independent stages:
+
+1. **Whether to show a message** — governed globally by `probability`
+   (default 1 in 1000 log calls).
+2. **Which message to show** — a weighted random pick from the pool. Each ad
+   carries a `weight`; an ad with weight `2` is twice as likely to be chosen as
+   one with weight `1`. A weight of `0` means the ad is never chosen.
 
 ## Custom messages
 
-Supply your own message pool to replace the built-in list entirely:
+Supply your own pool to replace the built-in list entirely. Each entry is an
+object with `text` and `weight`:
 
 ```ruby
 SponsoredLogs.sponsor!(ads: [
-  "Brought to you by Contoso, the enterprise you invented for the demo.",
-  "Initech. We put the TPS in your reports."
+  { text: "Brought to you by Contoso, the enterprise you invented for the demo.", weight: 3 },
+  { text: "Initech. We put the TPS in your reports.", weight: 1 }
 ])
 ```
 
@@ -94,22 +105,25 @@ Or set it through configuration:
 
 ```ruby
 SponsoredLogs.configure do |config|
-  config.ads = ["Your message here"]
+  config.ads = [{ text: "Your message here", weight: 1 }]
 end
 ```
 
-An empty or blank pool falls back to the built-in list.
+A missing `weight` defaults to `1`; a negative weight is treated as `0`. A pool
+that is empty, has only blank text, or sums to zero weight falls back to the
+built-in list.
 
 ### Loading messages from a file
 
 Messages can also be supplied as a JSON file, which works for both manual and
-environment activation. The file must be an object with an `"ads"` array:
+environment activation. The file must be an object with an `"ads"` array of
+`{ "text": ..., "weight": ... }` entries:
 
 ```json
 {
   "ads": [
-    "Brought to you by Contoso, the enterprise you invented for the demo.",
-    "Initech. We put the TPS in your reports."
+    { "text": "Brought to you by Contoso, the enterprise you invented for the demo.", "weight": 3 },
+    { "text": "Initech. We put the TPS in your reports.", "weight": 1 }
   ]
 }
 ```

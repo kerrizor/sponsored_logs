@@ -4,7 +4,9 @@ require "json"
 
 module SponsoredLogs
   module AdsFile
-    # Load an ad list from a JSON file shaped as { "ads": ["...", "..."] }.
+    # Load an ad list from a JSON file shaped as
+    # { "ads": [{ "text": "...", "weight": N }, ...] }. Entries are handed to
+    # Advertisers.normalize, so blank text is dropped and weights default to 1.
     # Any problem -- missing file, unreadable, malformed JSON, wrong shape --
     # warns to stderr and returns nil so the caller keeps the built-in list.
     #
@@ -18,7 +20,7 @@ module SponsoredLogs
         return nil
       end
 
-      ads.map(&:to_s).reject { |ad| ad.strip.empty? }
+      Advertisers.normalize(ads)
     rescue Errno::ENOENT
       warn_to.puts("[sponsored_logs] ads file not found: #{path}; using built-in messages.")
       nil

@@ -81,7 +81,7 @@ RSpec.describe SponsoredLogs do
 
     it "emits from a user-supplied ad list" do
       io = StringIO.new
-      described_class.sponsor!(ads: ["Only ad in the pool"])
+      described_class.sponsor!(ads: [{ text: "Only ad in the pool", weight: 1 }])
       described_class.emit(io)
       expect(io.string).to eq("[AD] Only ad in the pool\n")
     end
@@ -89,7 +89,7 @@ RSpec.describe SponsoredLogs do
     it "emits from an ads_file" do
       io = StringIO.new
       Tempfile.create(["ads", ".json"]) do |f|
-        f.write('{"ads": ["From a file"]}')
+        f.write('{"ads": [{"text": "From a file", "weight": 1}]}')
         f.flush
         described_class.sponsor!(ads_file: f.path)
       end
@@ -99,7 +99,7 @@ RSpec.describe SponsoredLogs do
 
     it "keeps the existing list when an ads_file fails to load" do
       io = StringIO.new
-      described_class.sponsor!(ads: ["still here"])
+      described_class.sponsor!(ads: [{ text: "still here", weight: 1 }])
       described_class.sponsor!(ads_file: "/no/such.json") # warns, no-op on the list
       described_class.emit(io)
       expect(io.string).to eq("[AD] still here\n")
@@ -130,12 +130,62 @@ RSpec.describe SponsoredLogs do
     end
 
     it "samples from a supplied ad list" do
-      expect(SponsoredLogs::Advertisers.sample("[AD]", ["Custom"])).to eq("[AD] Custom")
+      expect(SponsoredLogs::Advertisers.sample("[AD]", [{ text: "Custom", weight: 1 }])).to eq("[AD] Custom")
     end
 
     it "falls back to defaults when the supplied list is empty", :aggregate_failures do
       expect(SponsoredLogs::Advertisers.sample("[AD]", [])).to start_with("[AD] ")
-      expect(SponsoredLogs::Advertisers.sample("[AD]", ["", "  "])).to start_with("[AD] ")
+      expect(SponsoredLogs::Advertisers.sample("[AD]", [{ text: "", weight: 1 }])).to start_with("[AD] ")
+    end
+
+    it "falls back to defaults when every weight is zero" do
+      zeroed = [{ text: "never", weight: 0 }]
+      expect(SponsoredLogs::Advertisers.sample("[AD]", zeroed)).not_to include("never")
+    end
+
+    it "never picks a zero-weighted ad when others are available" do
+      pool = [
+        { text: "picked", weight: 1 },
+        { text: "skipped", weight: 0 }
+      ]
+      results = Array.new(200) { SponsoredLogs::Advertisers.sample("", pool) }
+      expect(results.uniq).to eq(["picked"])
+    end
+
+    it "honors relative weights", :aggregate_failures do
+      pool = [
+        { text: "common", weight: 9 },
+        { text: "rare", weight: 1 }
+      ]
+      results = Array.new(3000) { SponsoredLogs::Advertisers.sample("", pool) }
+      common = results.count("common")
+
+      # Expect roughly 90% common; assert a wide band to stay non-flaky.
+      expect(common).to be > 2400
+      expect(common).to be < 2999
+    end
+  end
+
+  describe "Advertisers.normalize" do
+    it "defaults a missing weight to 1" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }])).to eq([{ text: "x", weight: 1.0 }])
+    end
+
+    it "accepts string keys from parsed JSON" do
+      expect(SponsoredLogs::Advertisers.normalize([{ "text" => "x", "weight" => 5 }])).to eq([{ text: "x", weight: 5.0 }])
+    end
+
+    it "clamps a negative weight to zero" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -3 }])).to eq([{ text: "x", weight: 0.0 }])
+    end
+
+    it "defaults an unparseable weight to 1" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope" }])).to eq([{ text: "x", weight: 1.0 }])
+    end
+
+    it "drops entries with blank text", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "  ", weight: 1 }])).to eq([])
+      expect(SponsoredLogs::Advertisers.normalize(["a bare string"])).to eq([])
     end
   end
 end
