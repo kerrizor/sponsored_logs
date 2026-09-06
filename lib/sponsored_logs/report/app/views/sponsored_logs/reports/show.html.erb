@@ -25,6 +25,10 @@
     .chart .bar-value { font-size: 12px; fill: #555; font-variant-numeric: tabular-nums; }
     .chart .bar-track { fill: #f0f0f3; rx: 4; }
     .chart .bar-fill { fill: #4f46e5; rx: 4; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+             color: #fff; font-size: 0.7rem; text-transform: uppercase;
+             letter-spacing: 0.03em; }
+    td.flight { font-variant-numeric: tabular-nums; color: #555; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -56,6 +60,8 @@
       <thead>
         <tr>
           <th>Creative</th>
+          <th>Status</th>
+          <th>Flight</th>
           <th class="num">Impressions</th>
           <th class="num">CPM</th>
           <th class="num">Spend</th>
@@ -65,6 +71,8 @@
         <% @report[:ads].sort_by { |ad| -ad[:spend] }.each do |ad| %>
           <tr>
             <td><%= ad[:text] %></td>
+            <td><%= status_badge(ad[:status]) %></td>
+            <td class="flight"><%= flight_window(ad[:starts_at], ad[:ends_at]) %></td>
             <td class="num"><%= ad[:impressions] %></td>
             <td class="num">$<%= format("%.2f", ad[:cpm]) %></td>
             <td class="num">$<%= format("%.2f", ad[:spend]) %></td>

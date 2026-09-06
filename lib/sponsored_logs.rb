@@ -97,13 +97,28 @@ module SponsoredLogs
     end
 
     # Accrued fake ad economics: per-ad impressions and spend, plus totals.
-    # Spend is rounded to cents here; the ledger keeps the raw values.
+    # Spend is rounded to cents here; the ledger keeps the raw values. Each row
+    # is enriched with its flight window and status, looked up from the
+    # configured ads by text (nil window / :evergreen when not configured).
     #
     def report
+      now = Time.now
+      flights = flight_lookup
+
+      ads = ledger.entries.map do |entry|
+        flight = flights[entry.text] || {}
+        entry.to_h.merge(
+          spend: entry.spend.round(2),
+          starts_at: flight[:starts_at],
+          ends_at: flight[:ends_at],
+          status: Advertisers.status(flight, now)
+        )
+      end
+
       {
         impressions: ledger.total_impressions,
         spend: ledger.total_spend.round(2),
-        ads: ledger.entries.map { |entry| entry.to_h.merge(spend: entry.spend.round(2)) }
+        ads: ads
       }
     end
 
@@ -133,6 +148,15 @@ module SponsoredLogs
     end
 
     private
+
+    # Map of ad text => { starts_at:, ends_at: } from the configured ads, used
+    # to enrich ledger-driven report rows with flight windows.
+    #
+    def flight_lookup
+      Advertisers.normalize(configuration.ads).each_with_object({}) do |ad, acc|
+        acc[ad[:text]] = { starts_at: ad[:starts_at], ends_at: ad[:ends_at] }
+      end
+    end
 
     def start_periodic_thread
       stop_periodic_thread

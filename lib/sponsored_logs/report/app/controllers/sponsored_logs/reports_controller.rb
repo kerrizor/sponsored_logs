@@ -13,8 +13,24 @@ module SponsoredLogs
 
       respond_to do |format|
         format.html
-        format.json { render json: @report }
+        format.json { render json: json_report(@report) }
       end
+    end
+
+    private
+
+    # Serialize flight bounds as ISO 8601 strings for the JSON API; the HTML
+    # view keeps the Time objects for formatting.
+    #
+    def json_report(report)
+      report.merge(
+        ads: report[:ads].map do |ad|
+          ad.merge(
+            starts_at: ad[:starts_at]&.iso8601,
+            ends_at: ad[:ends_at]&.iso8601
+          )
+        end
+      )
     end
   end
 end

@@ -77,6 +77,18 @@ module SponsoredLogs
       true
     end
 
+    # Flight status of an ad at `now`: :scheduled (window not started),
+    # :ended (window passed), :evergreen (no bounds), or :active (live within
+    # its bounds).
+    #
+    def self.status(ad, now = Time.now)
+      return :scheduled if ad[:starts_at] && now < ad[:starts_at]
+      return :ended if ad[:ends_at] && now > ad[:ends_at]
+      return :evergreen if ad[:starts_at].nil? && ad[:ends_at].nil?
+
+      :active
+    end
+
     # Pick one normalized ad entry using the given selection mode, considering
     # only ads live at `now`. In :cpm mode the cpm drives the odds; if every
     # live cpm is 0 we fall back to manual weights so selection never stalls. A

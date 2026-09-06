@@ -205,6 +205,24 @@ RSpec.describe SponsoredLogs do
       expect(described_class.report[:impressions]).to eq(0)
     end
 
+    it "enriches rows with flight window and status", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [
+        { text: "Evergreen", weight: 1, cpm: 5 },
+        { text: "Ended", weight: 1, cpm: 5, ends_at: "2000-01-01" }
+      ])
+      # Force both to record regardless of liveness by writing to the store.
+      described_class.configuration.store.record(text: "Evergreen", weight: 1, cpm: 5.0)
+      described_class.configuration.store.record(text: "Ended", weight: 1, cpm: 5.0)
+
+      rows = described_class.report[:ads].each_with_object({}) { |ad, h| h[ad[:text]] = ad }
+
+      expect(rows["Evergreen"][:status]).to eq(:evergreen)
+      expect(rows["Evergreen"][:starts_at]).to be_nil
+      expect(rows["Ended"][:status]).to eq(:ended)
+      expect(rows["Ended"][:ends_at]).to be_a(Time)
+    end
+
     it "rounds spend to cents", :aggregate_failures do
       described_class.reset_ledger!
       # 333 / 1000 * 13 = 4.329 -> rounds to 4.33
@@ -425,6 +443,27 @@ RSpec.describe SponsoredLogs do
       ]
       results = Array.new(100) { pick_text(ads, now: now) }
       expect(results.uniq).to eq(["live"])
+    end
+
+    describe ".status" do
+      it "is :evergreen with no bounds" do
+        expect(SponsoredLogs::Advertisers.status({ starts_at: nil, ends_at: nil }, now)).to eq(:evergreen)
+      end
+
+      it "is :scheduled before the window" do
+        ad = { starts_at: Time.utc(2026, 8, 1), ends_at: nil }
+        expect(SponsoredLogs::Advertisers.status(ad, now)).to eq(:scheduled)
+      end
+
+      it "is :ended after the window" do
+        ad = { starts_at: nil, ends_at: Time.utc(2026, 1, 1) }
+        expect(SponsoredLogs::Advertisers.status(ad, now)).to eq(:ended)
+      end
+
+      it "is :active inside the window" do
+        ad = { starts_at: Time.utc(2026, 6, 1), ends_at: Time.utc(2026, 7, 1) }
+        expect(SponsoredLogs::Advertisers.status(ad, now)).to eq(:active)
+      end
     end
   end
 end

@@ -60,6 +60,16 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     expect(last_response.body).to include('class="bar-fill"')
   end
 
+  it "shows flight status badges and windows", :aggregate_failures do
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include(">Status<")
+    expect(last_response.body).to include(">Flight<")
+    expect(last_response.body).to include('class="badge"')
+    # DashAd has no bounds -> evergreen badge.
+    expect(last_response.body).to include("evergreen")
+  end
+
   it "returns JSON via the .json suffix", :aggregate_failures do
     get "/sponsored_logs_report.json"
 
@@ -68,6 +78,21 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     body = JSON.parse(last_response.body)
     expect(body["impressions"]).to eq(100)
     expect(body["ads"].first["text"]).to eq("DashAd")
+    expect(body["ads"].first["status"]).to eq("evergreen")
+  end
+
+  it "serializes flight bounds as ISO 8601 in JSON", :aggregate_failures do
+    SponsoredLogs.configuration.ads = [
+      { text: "DashAd", weight: 1, cpm: 20.0, starts_at: "2026-01-01", ends_at: "2100-01-01" }
+    ]
+    SponsoredLogs.reset_ledger!
+    SponsoredLogs.configuration.store.record(text: "DashAd", weight: 1, cpm: 20.0)
+
+    get "/sponsored_logs_report.json"
+    ad = JSON.parse(last_response.body)["ads"].first
+
+    expect(ad["starts_at"]).to match(/\A2026-01-01T/)
+    expect(ad["ends_at"]).to match(/\A2100-01-01T/)
   end
 
   it "returns JSON via the Accept header", :aggregate_failures do

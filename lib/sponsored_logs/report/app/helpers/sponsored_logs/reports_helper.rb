@@ -2,6 +2,13 @@
 
 module SponsoredLogs
   module ReportsHelper
+    STATUS_COLORS = {
+      active: "#16a34a",
+      scheduled: "#2563eb",
+      ended: "#6b7280",
+      evergreen: "#7c3aed"
+    }.freeze
+
     BAR_HEIGHT = 22
     BAR_GAP = 10
     LABEL_WIDTH = 320
@@ -38,6 +45,25 @@ module SponsoredLogs
         class: "chart",
         style: "width:100%;max-width:#{width}px;height:auto;"
       )
+    end
+
+    # Colored pill for an ad's flight status (:active/:scheduled/:ended/:evergreen).
+    #
+    def status_badge(status)
+      status ||= :evergreen
+      color = STATUS_COLORS.fetch(status, STATUS_COLORS[:evergreen])
+      content_tag(:span, status.to_s, class: "badge",
+                                      style: "background:#{color};")
+    end
+
+    # Human-readable flight window; an em dash when the ad has no bounds.
+    #
+    def flight_window(starts_at, ends_at)
+      return "\u2014" if starts_at.nil? && ends_at.nil?
+
+      from = starts_at ? starts_at.strftime("%Y-%m-%d") : "\u2026"
+      to = ends_at ? ends_at.strftime("%Y-%m-%d") : "\u2026"
+      "#{from} \u2192 #{to}"
     end
 
     private

@@ -197,6 +197,11 @@ When disabled, the route returns 404. `GET /sponsored_logs_report` renders an
 HTML dashboard; request JSON with the `.json` suffix or an
 `Accept: application/json` header to get the same data as `SponsoredLogs.report`.
 
+The dashboard shows spend and impression bar charts and a detail table. Each
+row carries a flight **status** badge (active, scheduled, ended, or evergreen)
+and its start–end window, joined from the configured ads. In JSON, flight
+bounds are ISO 8601 strings.
+
 ## Tracking impressions
 
 The ledger keeps impressions in a pluggable **store**. By default they live in
