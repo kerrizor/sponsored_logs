@@ -142,6 +142,23 @@ Bounds accept a `Time` or a parseable string; an unparseable value is ignored
 built-in list. Flight bounds also work in the JSON ads file
 (`"starts_at"` / `"ends_at"`).
 
+### Impression caps
+
+Each ad may carry an optional `cap` — a lifetime impression limit. Once an ad's
+recorded impressions reach its cap, it stops being eligible for selection and
+moves to the finished campaigns with an `:exhausted` status:
+
+```ruby
+SponsoredLogs.sponsor!(ads: [
+  { text: "Limited run", weight: 1, cap: 10_000 }, # stops after 10k impressions
+  { text: "Unlimited",   weight: 1 }               # no cap
+])
+```
+
+A missing, zero, negative, or unparseable `cap` means unlimited. Caps are
+enforced against the ledger's recorded impressions, so with a persistent store
+they hold across process restarts. `cap` also works in the JSON ads file.
+
 ## Spend reporting
 
 `cpm` is the cost per 1,000 impressions. Each inserted message counts as one

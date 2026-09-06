@@ -20,11 +20,12 @@ module SponsoredLogs
     SELECTION_MODES = %i[weight cpm].freeze
 
     # Coerce a raw list into
-    # [{ text:, weight:, cpm:, starts_at:, ends_at: }] entries. Accepts symbol-
-    # or string-keyed hashes; drops entries with blank text. Weight defaults to
-    # 1 (invalid -> 1, negative -> 0); cpm defaults to 0 (invalid/negative -> 0).
-    # starts_at/ends_at are optional flight bounds (nil = unbounded); an
-    # unparseable value becomes nil rather than raising.
+    # [{ text:, weight:, cpm:, starts_at:, ends_at:, cap: }] entries. Accepts
+    # symbol- or string-keyed hashes; drops entries with blank text. Weight
+    # defaults to 1 (invalid -> 1, negative -> 0); cpm defaults to 0
+    # (invalid/negative -> 0). starts_at/ends_at are optional flight bounds
+    # (nil = unbounded). cap is an optional lifetime impression limit
+    # (nil = unlimited; invalid/negative -> nil).
     #
     def self.normalize(ads)
       Array(ads).filter_map do |entry|
@@ -38,9 +39,22 @@ module SponsoredLogs
           weight: coerce_number(entry[:weight] || entry["weight"], default: 1.0),
           cpm: coerce_number(entry[:cpm] || entry["cpm"], default: 0.0),
           starts_at: coerce_time(entry[:starts_at] || entry["starts_at"]),
-          ends_at: coerce_time(entry[:ends_at] || entry["ends_at"])
+          ends_at: coerce_time(entry[:ends_at] || entry["ends_at"]),
+          cap: coerce_cap(entry[:cap] || entry["cap"])
         }
       end
+    end
+
+    # Parse an impression cap into a positive Integer, or nil (unlimited) when
+    # absent, non-positive, or unparseable.
+    #
+    def self.coerce_cap(value)
+      return nil if value.nil?
+
+      cap = Integer(value)
+      cap.positive? ? cap : nil
+    rescue ArgumentError, TypeError
+      nil
     end
 
     def self.coerce_number(value, default:)
@@ -77,11 +91,28 @@ module SponsoredLogs
       true
     end
 
-    # Flight status of an ad at `now`: :scheduled (window not started),
-    # :ended (window passed), :evergreen (no bounds), or :active (live within
-    # its bounds).
+    # Whether an ad has reached its impression cap given a current count.
+    # Uncapped ads (nil cap) are never capped.
     #
-    def self.status(ad, now = Time.now)
+    def self.capped?(ad, count)
+      cap = ad[:cap]
+      return false if cap.nil?
+
+      count.to_i >= cap
+    end
+
+    # Whether an ad is eligible for selection: live at `now` and not capped.
+    #
+    def self.eligible?(ad, now, count)
+      live?(ad, now) && !capped?(ad, count)
+    end
+
+    # Status of an ad at `now` given its impression count: :exhausted (cap
+    # reached), :scheduled (window not started), :ended (window passed),
+    # :evergreen (no bounds), or :active.
+    #
+    def self.status(ad, now = Time.now, count = 0)
+      return :exhausted if capped?(ad, count)
       return :scheduled if ad[:starts_at] && now < ad[:starts_at]
       return :ended if ad[:ends_at] && now > ad[:ends_at]
       return :evergreen if ad[:starts_at].nil? && ad[:ends_at].nil?
@@ -90,14 +121,16 @@ module SponsoredLogs
     end
 
     # Pick one normalized ad entry using the given selection mode, considering
-    # only ads live at `now`. In :cpm mode the cpm drives the odds; if every
-    # live cpm is 0 we fall back to manual weights so selection never stalls. A
-    # pool with no live ads (or whose live weights sum to zero) falls back to
-    # the built-in list. Returns nil only when the pool is truly empty.
+    # only ads eligible at `now` -- live within their flight window and under
+    # their impression cap (counts is a text => impressions map). In :cpm mode
+    # the cpm drives the odds; if every eligible cpm is 0 we fall back to manual
+    # weights so selection never stalls. A pool with no eligible ads (or whose
+    # eligible weights sum to zero) falls back to the built-in list. Returns nil
+    # only when the pool is truly empty.
     #
-    def self.pick(ads = DEFAULT_ADS, mode: :weight, now: Time.now)
-      pool = live(normalize(ads), now)
-      pool = live(normalize(DEFAULT_ADS), now) if pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
+    def self.pick(ads = DEFAULT_ADS, mode: :weight, now: Time.now, counts: {})
+      pool = eligible(normalize(ads), now, counts)
+      pool = eligible(normalize(DEFAULT_ADS), now, counts) if pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
 
       key = SELECTION_MODES.include?(mode) ? mode : :weight
       key = :weight if key == :cpm && pool.sum { |ad| ad[:cpm] }.zero?
@@ -105,8 +138,8 @@ module SponsoredLogs
       weighted_pick(pool, key)
     end
 
-    def self.live(pool, now)
-      pool.select { |ad| live?(ad, now) }
+    def self.eligible(pool, now, counts)
+      pool.select { |ad| eligible?(ad, now, counts[ad[:text]].to_i) }
     end
 
     def self.render(entry, prefix = "[AD]")

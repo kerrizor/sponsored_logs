@@ -68,7 +68,11 @@ module SponsoredLogs
     end
 
     def emit(target = configuration.output)
-      ad = Advertisers.pick(configuration.ads, mode: configuration.selection)
+      ad = Advertisers.pick(
+        configuration.ads,
+        mode: configuration.selection,
+        counts: ledger.impression_counts
+      )
       return if ad.nil?
 
       ledger.record(ad)
@@ -99,36 +103,44 @@ module SponsoredLogs
     # Accrued fake ad economics: per-ad impressions and spend, plus totals.
     # Spend is rounded to cents here; the ledger keeps the raw values.
     #
-    # - ads:      impression-driven rows for messages that have served,
-    #             enriched with flight window and status.
-    # - upcoming: configured ads scheduled to start in the future (from config,
-    #             so zero-impression campaigns still appear).
-    # - finished: configured ads whose flight window has ended, served or not.
+    # Every ad appears in exactly one group, by status:
+    # - upcoming: :scheduled (window not started yet).
+    # - finished: :ended (window passed) or :exhausted (impression cap reached).
+    # - ads:      running campaigns (:active / :evergreen) that have served.
+    #
+    # Running rows are impression-driven (served ads only); upcoming and
+    # finished also include configured ads that have not served, so scheduled
+    # and completed campaigns still appear.
     #
     def report
       now = Time.now
-      flights = flight_lookup
+      metas = ad_metadata
+      counts = ledger.impression_counts
       served = ledger.entries.to_h { |entry| [entry.text, entry] }
 
-      ads = ledger.entries.map do |entry|
-        flight = flights[entry.text] || {}
-        entry.to_h.merge(
-          spend: entry.spend.round(2),
-          starts_at: flight[:starts_at],
-          ends_at: flight[:ends_at],
-          status: Advertisers.status(flight, now)
-        )
-      end
+      texts = (served.keys + metas.keys).uniq
+      grouped = Hash.new { |h, k| h[k] = [] }
 
-      upcoming = configured_rows_with_status(:scheduled, now, served)
-      finished = configured_rows_with_status(:ended, now, served)
+      texts.each do |text|
+        meta = metas[text] || {}
+        count = counts[text].to_i
+        status = Advertisers.status(meta, now, count)
+        row = report_row(text, meta, served[text], status)
+
+        case status
+        when :scheduled then grouped[:upcoming] << row
+        when :ended, :exhausted then grouped[:finished] << row
+        else
+          grouped[:running] << row if served[text]
+        end
+      end
 
       {
         impressions: ledger.total_impressions,
         spend: ledger.total_spend.round(2),
-        ads: ads,
-        upcoming: upcoming,
-        finished: finished
+        ads: grouped[:running],
+        upcoming: grouped[:upcoming],
+        finished: grouped[:finished]
       }
     end
 
@@ -159,33 +171,29 @@ module SponsoredLogs
 
     private
 
-    # Map of ad text => { starts_at:, ends_at: } from the configured ads, used
-    # to enrich ledger-driven report rows with flight windows.
+    # Map of ad text => normalized config metadata (weight/cpm/flight/cap),
+    # used to enrich report rows and drive status.
     #
-    def flight_lookup
+    def ad_metadata
       Advertisers.normalize(configuration.ads).each_with_object({}) do |ad, acc|
-        acc[ad[:text]] = { starts_at: ad[:starts_at], ends_at: ad[:ends_at] }
+        acc[ad[:text]] = ad
       end
     end
 
-    # Configured ads matching a flight status, as report rows. Impressions and
-    # spend come from the ledger when the ad has served, otherwise zero.
+    # A single report row. Impressions/spend come from the ledger entry when the
+    # ad has served, otherwise zero; window/cap come from config metadata.
     #
-    def configured_rows_with_status(status, now, served)
-      Advertisers.normalize(configuration.ads).filter_map do |ad|
-        next unless Advertisers.status(ad, now) == status
-
-        entry = served[ad[:text]]
-        {
-          text: ad[:text],
-          impressions: entry ? entry.impressions : 0,
-          cpm: ad[:cpm],
-          spend: entry ? entry.spend.round(2) : 0.0,
-          starts_at: ad[:starts_at],
-          ends_at: ad[:ends_at],
-          status: status
-        }
-      end
+    def report_row(text, meta, entry, status)
+      {
+        text: text,
+        impressions: entry ? entry.impressions : 0,
+        cpm: entry ? entry.cpm : meta[:cpm].to_f,
+        spend: entry ? entry.spend.round(2) : 0.0,
+        starts_at: meta[:starts_at],
+        ends_at: meta[:ends_at],
+        cap: meta[:cap],
+        status: status
+      }
     end
 
     def start_periodic_thread

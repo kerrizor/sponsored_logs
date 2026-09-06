@@ -36,6 +36,12 @@ module SponsoredLogs
         end
       end
 
+      # Map of ad text => recorded impressions, for cap enforcement.
+      #
+      def impression_counts
+        @store.snapshot.transform_values { |data| data[:impressions] }
+      end
+
       def reset
         @store.reset
         self

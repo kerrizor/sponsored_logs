@@ -222,6 +222,20 @@ RSpec.describe SponsoredLogs do
       expect(report[:ads].map { |a| a[:text] }).to eq(["Live now"])
     end
 
+    it "moves a capped-out ad into finished with :exhausted status", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [{ text: "Capped", weight: 1, cpm: 10, cap: 5 }])
+      5.times { described_class.configuration.store.record(text: "Capped", weight: 1, cpm: 10.0) }
+
+      report = described_class.report
+
+      expect(report[:ads].map { |a| a[:text] }).not_to include("Capped")
+      exhausted = report[:finished].find { |a| a[:text] == "Capped" }
+      expect(exhausted).not_to be_nil
+      expect(exhausted[:status]).to eq(:exhausted)
+      expect(exhausted[:impressions]).to eq(5)
+    end
+
     it "lists ended ads under finished, served or not", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
@@ -240,7 +254,7 @@ RSpec.describe SponsoredLogs do
       expect(never[:status]).to eq(:ended)
     end
 
-    it "enriches rows with flight window and status", :aggregate_failures do
+    it "enriches rows with flight window and status, grouping by status", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [
         { text: "Evergreen", weight: 1, cpm: 5 },
@@ -250,12 +264,14 @@ RSpec.describe SponsoredLogs do
       described_class.configuration.store.record(text: "Evergreen", weight: 1, cpm: 5.0)
       described_class.configuration.store.record(text: "Ended", weight: 1, cpm: 5.0)
 
-      rows = described_class.report[:ads].each_with_object({}) { |ad, h| h[ad[:text]] = ad }
+      report = described_class.report
+      running = report[:ads].find { |a| a[:text] == "Evergreen" }
+      ended = report[:finished].find { |a| a[:text] == "Ended" }
 
-      expect(rows["Evergreen"][:status]).to eq(:evergreen)
-      expect(rows["Evergreen"][:starts_at]).to be_nil
-      expect(rows["Ended"][:status]).to eq(:ended)
-      expect(rows["Ended"][:ends_at]).to be_a(Time)
+      expect(running[:status]).to eq(:evergreen)
+      expect(running[:starts_at]).to be_nil
+      expect(ended[:status]).to eq(:ended)
+      expect(ended[:ends_at]).to be_a(Time)
     end
 
     it "rounds spend to cents", :aggregate_failures do
@@ -438,6 +454,11 @@ RSpec.describe SponsoredLogs do
       ad = SponsoredLogs::Advertisers.normalize([{ text: "x", starts_at: "not a date" }]).first
       expect(ad[:starts_at]).to be_nil
     end
+
+    it "defaults cap to nil and parses a positive cap", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first[:cap]).to be_nil
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", cap: 250 }]).first[:cap]).to eq(250)
+    end
   end
 
   describe "Advertisers flighting" do
@@ -499,6 +520,65 @@ RSpec.describe SponsoredLogs do
         ad = { starts_at: Time.utc(2026, 6, 1), ends_at: Time.utc(2026, 7, 1) }
         expect(SponsoredLogs::Advertisers.status(ad, now)).to eq(:active)
       end
+
+      it "is :exhausted when the cap is reached, overriding flight status" do
+        ad = { starts_at: nil, ends_at: nil, cap: 100 }
+        expect(SponsoredLogs::Advertisers.status(ad, now, 100)).to eq(:exhausted)
+        expect(SponsoredLogs::Advertisers.status(ad, now, 99)).to eq(:evergreen)
+      end
+    end
+  end
+
+  describe "Advertisers impression caps" do
+    let(:now) { Time.utc(2026, 6, 15, 12, 0, 0) }
+
+    describe ".coerce_cap" do
+      it "keeps a positive integer" do
+        expect(SponsoredLogs::Advertisers.coerce_cap(500)).to eq(500)
+      end
+
+      it "parses a numeric string" do
+        expect(SponsoredLogs::Advertisers.coerce_cap("500")).to eq(500)
+      end
+
+      it "treats nil, zero, negative, and garbage as unlimited (nil)", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_cap(nil)).to be_nil
+        expect(SponsoredLogs::Advertisers.coerce_cap(0)).to be_nil
+        expect(SponsoredLogs::Advertisers.coerce_cap(-5)).to be_nil
+        expect(SponsoredLogs::Advertisers.coerce_cap("nope")).to be_nil
+      end
+    end
+
+    describe ".capped?" do
+      it "is false when uncapped" do
+        expect(SponsoredLogs::Advertisers.capped?({ cap: nil }, 10_000)).to be(false)
+      end
+
+      it "is true at or over the cap", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.capped?({ cap: 100 }, 100)).to be(true)
+        expect(SponsoredLogs::Advertisers.capped?({ cap: 100 }, 101)).to be(true)
+        expect(SponsoredLogs::Advertisers.capped?({ cap: 100 }, 99)).to be(false)
+      end
+    end
+
+    it "pick excludes an ad that has hit its cap" do
+      ads = [
+        { text: "capped", weight: 5, cap: 10 },
+        { text: "open", weight: 1 }
+      ]
+      counts = { "capped" => 10 }
+      results = Array.new(100) do
+        SponsoredLogs::Advertisers.render(
+          SponsoredLogs::Advertisers.pick(ads, now: now, counts: counts), ""
+        )
+      end
+      expect(results.uniq).to eq(["open"])
+    end
+
+    it "pick still allows an ad under its cap" do
+      ads = [{ text: "capped", weight: 1, cap: 10 }]
+      picked = SponsoredLogs::Advertisers.pick(ads, now: now, counts: { "capped" => 9 })
+      expect(picked[:text]).to eq("capped")
     end
   end
 end
