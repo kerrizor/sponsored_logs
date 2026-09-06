@@ -7,6 +7,7 @@ module SponsoredLogs
     attr_accessor :interval
     attr_accessor :output
     attr_accessor :ad_prefix
+    attr_accessor :ads
 
     def initialize
       @probability = 0.001
@@ -14,6 +15,7 @@ module SponsoredLogs
       @interval = 30
       @output = $stdout
       @ad_prefix = "[AD]"
+      @ads = Advertisers::DEFAULT_ADS
     end
   end
 end

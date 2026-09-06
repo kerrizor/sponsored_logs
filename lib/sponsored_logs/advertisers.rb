@@ -2,7 +2,7 @@
 
 module SponsoredLogs
   module Advertisers
-    ADS = [
+    DEFAULT_ADS = [
       "This log line brought to you by Shopify. Start selling in the time it took to raise that exception.",
       "Mint Mobile: premium wireless for the price of one deprecated dependency. Go to mintmobile.com/logs.",
       "Quince: luxury log output at radically low overhead. Free returns on any stack trace.",
@@ -15,9 +15,12 @@ module SponsoredLogs
       "Let's go places. Toyota. (Preferably away from this NullPointerException.)"
     ].freeze
 
-    def self.sample(prefix = "[AD]")
+    def self.sample(prefix = "[AD]", ads = DEFAULT_ADS)
+      pool = Array(ads).reject { |ad| ad.to_s.strip.empty? }
+      pool = DEFAULT_ADS if pool.empty?
+
       prefix = prefix.to_s.strip
-      prefix.empty? ? ADS.sample : "#{prefix} #{ADS.sample}"
+      prefix.empty? ? pool.sample : "#{prefix} #{pool.sample}"
     end
   end
 end

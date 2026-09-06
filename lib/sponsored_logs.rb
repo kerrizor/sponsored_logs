@@ -19,12 +19,13 @@ module SponsoredLogs
       configuration
     end
 
-    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil)
+    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil)
       configuration.probability = probability unless probability.nil?
       configuration.periodic    = periodic    unless periodic.nil?
       configuration.interval    = interval    unless interval.nil?
       configuration.output      = output      unless output.nil?
       configuration.ad_prefix   = ad_prefix   unless ad_prefix.nil?
+      configuration.ads         = ads         unless ads.nil?
 
       Injector.install!
       @active = true
@@ -62,7 +63,7 @@ module SponsoredLogs
     end
 
     def emit(target = configuration.output)
-      line = Advertisers.sample(configuration.ad_prefix)
+      line = Advertisers.sample(configuration.ad_prefix, configuration.ads)
 
       if target.is_a?(Logger)
         # Raw << avoids re-triggering our own Logger#add patch (infinite loop).

@@ -77,17 +77,28 @@ RSpec.describe SponsoredLogs do
       described_class.emit(io)
       expect(io.string).not_to include("[AD]")
     end
+
+    it "emits from a user-supplied ad list" do
+      io = StringIO.new
+      described_class.sponsor!(ads: ["Only ad in the pool"])
+      described_class.emit(io)
+      expect(io.string).to eq("[AD] Only ad in the pool\n")
+    end
   end
 
   describe "configuration" do
     it "defaults ad_prefix to [AD]" do
       expect(described_class.configuration.ad_prefix).to eq("[AD]")
     end
+
+    it "defaults ads to the built-in list" do
+      expect(described_class.configuration.ads).to eq(SponsoredLogs::Advertisers::DEFAULT_ADS)
+    end
   end
 
   describe "Advertisers" do
-    it "provides exactly ten ads" do
-      expect(SponsoredLogs::Advertisers::ADS.length).to eq(10)
+    it "provides exactly ten built-in ads" do
+      expect(SponsoredLogs::Advertisers::DEFAULT_ADS.length).to eq(10)
     end
 
     it "defaults to an [AD] tagged line" do
@@ -96,6 +107,15 @@ RSpec.describe SponsoredLogs do
 
     it "accepts a custom prefix" do
       expect(SponsoredLogs::Advertisers.sample("YO:")).to start_with("YO: ")
+    end
+
+    it "samples from a supplied ad list" do
+      expect(SponsoredLogs::Advertisers.sample("[AD]", ["Custom"])).to eq("[AD] Custom")
+    end
+
+    it "falls back to defaults when the supplied list is empty", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers.sample("[AD]", [])).to start_with("[AD] ")
+      expect(SponsoredLogs::Advertisers.sample("[AD]", ["", "  "])).to start_with("[AD] ")
     end
   end
 end

@@ -77,6 +77,28 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `interval`    | `30`       | Seconds between periodic insertions.                           |
 | `output`      | `$stdout`  | Where periodic ads are written.                                |
 | `ad_prefix`   | `"[AD]"`   | Tag prepended to each message; blank omits it.                 |
+| `ads`         | top 10     | The pool of messages to draw from.                             |
+
+## Custom messages
+
+Supply your own message pool to replace the built-in list entirely:
+
+```ruby
+SponsoredLogs.sponsor!(ads: [
+  "Brought to you by Contoso, the enterprise you invented for the demo.",
+  "Initech. We put the TPS in your reports."
+])
+```
+
+Or set it through configuration:
+
+```ruby
+SponsoredLogs.configure do |config|
+  config.ads = ["Your message here"]
+end
+```
+
+An empty or blank pool falls back to the built-in list.
 
 ## Activation via the environment
 
