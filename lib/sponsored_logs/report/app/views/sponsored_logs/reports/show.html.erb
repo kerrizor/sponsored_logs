@@ -4,43 +4,150 @@
   <meta charset="utf-8">
   <title>Campaign Performance</title>
   <style>
-    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-           margin: 2rem auto; max-width: 60rem; color: #1a1a1a; }
-    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
-    .subtitle { color: #666; margin-top: 0; font-size: 0.9rem; }
-    .totals { display: flex; gap: 2rem; margin: 1.5rem 0; }
-    .totals div { background: #f4f4f6; border-radius: 8px; padding: 1rem 1.25rem; }
-    .totals .label { display: block; font-size: 0.75rem; text-transform: uppercase;
-                     letter-spacing: 0.05em; color: #888; }
-    .totals .value { font-size: 1.6rem; font-weight: 600; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid #eee; }
-    th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
-    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .empty { color: #888; font-style: italic; margin-top: 1.5rem; }
-    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
-         color: #888; margin: 2rem 0 0.5rem; }
+    :root {
+      --bg-0: #0b0f19;
+      --bg-1: #161e2e;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --border: #374151;
+      --border-soft: #243044;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --faint: #6b7280;
+      --gold-0: #f59e0b;
+      --gold-1: #fbbf24;
+      --cyan: #38bdf8;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--sans);
+      margin: 0;
+      padding: 2.5rem 1.5rem;
+      color: var(--text);
+      background: linear-gradient(135deg, var(--bg-0), var(--bg-1));
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 64rem; margin: 0 auto; }
+
+    .masthead {
+      display: flex; align-items: center; gap: 0.75rem;
+      border: 1px solid var(--border); border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      padding: 1.1rem 1.4rem; margin-bottom: 1.75rem;
+    }
+    .masthead .dots { display: flex; gap: 6px; margin-right: 0.4rem; }
+    .masthead .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+    .masthead .dots .r { background: #ef4444; }
+    .masthead .dots .y { background: var(--gold-0); }
+    .masthead .dots .g { background: #10b981; }
+    .masthead h1 { font-size: 1.25rem; margin: 0; font-weight: 800; letter-spacing: -0.02em; }
+    .masthead h1 .gold { color: var(--gold-1); }
+    .masthead .subtitle { color: var(--cyan); margin: 0.15rem 0 0; font-size: 0.72rem;
+                          font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    .masthead .promoted { margin-left: auto; font-family: var(--mono); font-size: 0.62rem;
+                          font-weight: 700; letter-spacing: 0.1em; color: var(--gold-0);
+                          border: 1px solid var(--border); border-radius: 5px; padding: 0.3rem 0.55rem;
+                          background: #0f1625; }
+
+    .totals { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0 0 2rem; }
+    .totals .card {
+      flex: 1 1 12rem;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.3rem;
+    }
+    .totals .label { display: block; font-size: 0.66rem; text-transform: uppercase;
+                     letter-spacing: 0.09em; color: var(--muted); font-family: var(--mono); }
+    .totals .value { font-size: 1.9rem; font-weight: 800; font-family: var(--mono);
+                     color: var(--gold-1); margin-top: 0.35rem; }
+
+    h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em;
+         color: var(--cyan); font-family: var(--mono); margin: 2.25rem 0 0.75rem; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem;
+            border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+            background: var(--panel); }
+    th, td { text-align: left; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border-soft); }
+    tr:last-child td { border-bottom: none; }
+    th { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.08em;
+         color: var(--muted); font-family: var(--mono); background: var(--panel-2); }
+    td { font-size: 0.85rem; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+    tbody tr:hover { background: #0f1727; }
+
+    .empty { color: var(--faint); font-style: italic; margin-top: 1.5rem;
+             font-family: var(--mono); }
+
     .chart { display: block; }
-    .chart .bar-label { font-size: 12px; fill: #333; }
-    .chart .bar-value { font-size: 12px; fill: #555; font-variant-numeric: tabular-nums; }
-    .chart .bar-track { fill: #f0f0f3; rx: 4; }
-    .chart .bar-fill { fill: #4f46e5; rx: 4; }
-    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
-             color: #fff; font-size: 0.7rem; text-transform: uppercase;
-             letter-spacing: 0.03em; }
-    td.flight { font-variant-numeric: tabular-nums; color: #555; white-space: nowrap; }
+    .chart .bar-label { font-size: 12px; fill: var(--muted); font-family: var(--mono); }
+    .chart .bar-value { font-size: 12px; fill: var(--gold-1); font-variant-numeric: tabular-nums;
+                        font-family: var(--mono); }
+    .chart .bar-track { fill: #0f1727; rx: 4; }
+    .chart .bar-fill { fill: url(#slGold); rx: 4; }
+
+    .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
+             color: #0b0f19; font-size: 0.62rem; text-transform: uppercase;
+             letter-spacing: 0.04em; font-weight: 800; font-family: var(--mono); }
+    td.flight { font-variant-numeric: tabular-nums; color: var(--muted);
+                white-space: nowrap; font-family: var(--mono); font-size: 0.8rem; }
+
+    /* Share-of-spend donut */
+    .donut-wrap { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+                  border: 1px solid var(--border); border-radius: 12px;
+                  background: var(--panel); padding: 1.2rem 1.4rem; }
+    .legend { flex: 1 1 16rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .legend-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
+    .legend-label { color: var(--text); overflow: hidden; text-overflow: ellipsis;
+                    white-space: nowrap; }
+    .legend-value { margin-left: auto; color: var(--muted); font-family: var(--mono);
+                    font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    /* Delivery-to-goal (cap) progress */
+    .cap-list { display: flex; flex-direction: column; gap: 0.9rem;
+                border: 1px solid var(--border); border-radius: 12px;
+                background: var(--panel); padding: 1.2rem 1.4rem; }
+    .cap-head { display: flex; justify-content: space-between; align-items: baseline;
+                margin-bottom: 0.35rem; font-size: 0.82rem; }
+    .cap-label { color: var(--text); overflow: hidden; text-overflow: ellipsis;
+                 white-space: nowrap; margin-right: 1rem; }
+    .cap-count { color: var(--muted); font-family: var(--mono);
+                 font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .cap-track { height: 10px; border-radius: 999px; background: #0f1727; overflow: hidden; }
+    .cap-fill { height: 100%; border-radius: 999px;
+                background: linear-gradient(90deg, var(--gold-0), var(--gold-1)); }
+    .cap-fill.full { background: linear-gradient(90deg, #10b981, #34d399); }
   </style>
 </head>
 <body>
-  <h1>Campaign Performance</h1>
-  <p class="subtitle">Sponsored message delivery report</p>
+  <!-- Shared gradient for SVG bar fills, matching the banner's gold. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="slGold" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#f59e0b" />
+        <stop offset="100%" stop-color="#fbbf24" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="wrap">
+    <header class="masthead">
+      <span class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+      <div>
+        <h1>Sponsored<span class="gold">Logs</span> <span style="color:var(--muted);font-weight:600;">Command Center</span></h1>
+        <p class="subtitle">Campaign performance &middot; live delivery report</p>
+      </div>
+      <span class="promoted">SPONSORED</span>
+    </header>
 
   <div class="totals">
-    <div>
+    <div class="card">
       <span class="label">Impressions</span>
       <span class="value"><%= @report[:impressions] %></span>
     </div>
-    <div>
+    <div class="card">
       <span class="label">Total spend</span>
       <span class="value">$<%= format("%.2f", @report[:spend]) %></span>
     </div>
@@ -49,6 +156,9 @@
   <% if @report[:ads].empty? %>
     <p class="empty">No impressions delivered yet.</p>
   <% else %>
+    <h2>Share of spend</h2>
+    <%= donut_chart(@report[:ads]) %>
+
     <h2>Spend by advertiser</h2>
     <%= bar_chart(@report[:ads], value: ->(ad) { ad[:spend] }, format: ->(v) { "$#{format('%.2f', v)}" }) %>
 
@@ -57,6 +167,12 @@
 
     <h2>Running campaigns</h2>
     <%= campaign_table(@report[:ads]) %>
+  <% end %>
+
+  <% cap = cap_progress(@report) %>
+  <% if cap %>
+    <h2>Delivery to goal</h2>
+    <%= cap %>
   <% end %>
 
   <% if @report[:upcoming].any? %>
@@ -68,5 +184,6 @@
     <h2>Finished campaigns</h2>
     <%= campaign_table(@report[:finished]) %>
   <% end %>
+  </div>
 </body>
 </html>

@@ -20,9 +20,11 @@ Metrics/MethodLength:
   Max: 25
 
 # The main module carries the full public API plus report-building helpers;
-# it is cohesive rather than bloated.
+# it is cohesive rather than bloated. The view helper grows with each chart.
 Metrics/ModuleLength:
   Max: 160
+  Exclude:
+    - "lib/sponsored_logs/report/app/helpers/**/*"
 
 Metrics/ClassLength:
   Max: 160

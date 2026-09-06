@@ -60,6 +60,29 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     expect(last_response.body).to include('class="bar-fill"')
   end
 
+  it "renders the share-of-spend donut", :aggregate_failures do
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include("Share of spend")
+    expect(last_response.body).to include('class="donut"')
+    expect(last_response.body).to include('class="legend"')
+  end
+
+  it "renders delivery-to-goal bars for capped ads", :aggregate_failures do
+    SponsoredLogs.configuration.ads = [{ text: "DashAd", weight: 1, cpm: 20.0, cap: 500 }]
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include("Delivery to goal")
+    expect(last_response.body).to include('class="cap-fill"')
+  end
+
+  it "omits delivery-to-goal when no ad is capped" do
+    SponsoredLogs.configuration.ads = [{ text: "DashAd", weight: 1, cpm: 20.0 }]
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).not_to include("Delivery to goal")
+  end
+
   it "shows flight status badges and windows", :aggregate_failures do
     get "/sponsored_logs_report"
 
