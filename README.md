@@ -176,6 +176,22 @@ reports on top of each store's `snapshot`, so a store only holds raw tallies.
   )
   ```
 
+- `SponsoredLogs::Ledger::Store::ActiveRecord` — persistent, backed by your
+  application's database. Generate the migration, run it, then use the store:
+
+  ```
+  bin/rails generate sponsored_logs:install
+  bin/rails db:migrate
+  ```
+
+  ```ruby
+  SponsoredLogs.sponsor!(store: SponsoredLogs::Ledger::Store::ActiveRecord.new)
+  ```
+
+  Rows live in `sponsored_logs_impressions`, keyed by a SHA256 digest of the ad
+  text (so long ad copy is not an index-length problem). Pass `model:` to use
+  your own ActiveRecord class instead of the bundled one.
+
 Write your own by subclassing `SponsoredLogs::Ledger::Store::Base` (or
 duck-typing it) and implementing three methods:
 

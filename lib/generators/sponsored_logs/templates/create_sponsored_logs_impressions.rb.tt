@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+class CreateSponsoredLogsImpressions < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  def change
+    create_table :sponsored_logs_impressions do |t|
+      t.string  :text_digest, null: false
+      t.text    :text,        null: false
+      t.integer :impressions, null: false, default: 0
+      t.float   :cpm,         null: false, default: 0.0
+
+      t.timestamps
+    end
+
+    add_index :sponsored_logs_impressions, :text_digest, unique: true
+  end
+end
