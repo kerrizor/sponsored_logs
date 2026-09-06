@@ -9,6 +9,7 @@ module SponsoredLogs
     attr_accessor :ad_prefix
     attr_accessor :ads
     attr_accessor :selection
+    attr_accessor :storage
 
     def initialize
       @probability = 0.001
@@ -18,6 +19,7 @@ module SponsoredLogs
       @ad_prefix = "[AD]"
       @ads = Advertisers::DEFAULT_ADS
       @selection = :weight
+      @storage = Storage::Memory.new
     end
   end
 end

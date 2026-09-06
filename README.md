@@ -79,6 +79,7 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `ad_prefix`   | `"[AD]"`   | Tag prepended to each message; blank omits it.                 |
 | `ads`         | top 10     | The pool of messages to draw from.                             |
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
+| `storage`     | in-memory  | Impression storage adapter (see Storage below).                |
 
 ## How a message is chosen
 
@@ -152,6 +153,36 @@ Brought to you by Contoso   1000    22.00      22.00
 Initech...                   500     8.00       4.00
 ----------------------------------------------------
 TOTAL                       1500                26.00
+```
+
+## Storage
+
+Impressions are held by a pluggable storage adapter. The gem computes spend and
+reports on top of each adapter's `snapshot`, so an adapter only stores raw
+tallies.
+
+- `SponsoredLogs::Storage::Memory` (default) — in-memory, thread-safe, not
+  persisted across process restarts.
+- `SponsoredLogs::Storage::Redis` — persistent, backed by Redis. Requires the
+  `redis` gem (only loaded when this adapter is used):
+
+  ```ruby
+  SponsoredLogs.sponsor!(
+    storage: SponsoredLogs::Storage::Redis.new(client: Redis.new)
+  )
+  ```
+
+Write your own by subclassing `SponsoredLogs::Storage::Base` (or duck-typing it)
+and implementing three methods:
+
+```ruby
+class MyStorage < SponsoredLogs::Storage::Base
+  def record(ad); end     # store one impression for { text:, weight:, cpm: }
+  def snapshot; end        # => { text => { impressions: Integer, cpm: Float } }
+  def reset; self; end     # clear all impressions
+end
+
+SponsoredLogs.sponsor!(storage: MyStorage.new)
 ```
 
 ### Loading messages from a file

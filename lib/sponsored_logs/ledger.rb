@@ -1,40 +1,42 @@
 # frozen_string_literal: true
 
 module SponsoredLogs
-  # Tallies impressions and accrued spend per ad. Spend for an ad is
-  # impressions / 1000.0 * cpm (cost per mille). Keyed by ad text.
+  # Computes impression/spend figures over a storage adapter. Storage holds raw
+  # tallies; the Ledger derives totals and per-ad entries from #snapshot.
+  # Spend for an ad is impressions / 1000.0 * cpm (cost per mille).
   #
   class Ledger
     Entry = Struct.new(:text, :impressions, :cpm, :spend, keyword_init: true)
 
-    def initialize
-      @impressions = Hash.new(0)
-      @cpm = {}
+    def initialize(storage)
+      @storage = storage
     end
 
     def record(ad)
-      @impressions[ad[:text]] += 1
-      @cpm[ad[:text]] = ad[:cpm].to_f
+      @storage.record(ad)
     end
 
     def total_impressions
-      @impressions.values.sum
+      @storage.snapshot.sum { |_text, data| data[:impressions] }
     end
 
     def total_spend
-      @impressions.sum { |text, count| spend_for(count, @cpm[text]) }
+      @storage.snapshot.sum { |_text, data| spend_for(data[:impressions], data[:cpm]) }
     end
 
     def entries
-      @impressions.map do |text, count|
-        cpm = @cpm[text].to_f
-        Entry.new(text: text, impressions: count, cpm: cpm, spend: spend_for(count, cpm))
+      @storage.snapshot.map do |text, data|
+        Entry.new(
+          text: text,
+          impressions: data[:impressions],
+          cpm: data[:cpm].to_f,
+          spend: spend_for(data[:impressions], data[:cpm])
+        )
       end
     end
 
     def reset
-      @impressions = Hash.new(0)
-      @cpm = {}
+      @storage.reset
       self
     end
 

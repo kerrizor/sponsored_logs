@@ -10,7 +10,8 @@ RSpec.configure do |config|
   # can leak into other specs.
   config.after do
     SponsoredLogs.unsponsor!
-    SponsoredLogs.reset_ledger!
     SponsoredLogs.instance_variable_set(:@configuration, nil)
+    SponsoredLogs.instance_variable_set(:@ledger, nil)
+    SponsoredLogs.instance_variable_set(:@ledger_storage, nil)
   end
 end

@@ -5,6 +5,9 @@ require "logger"
 require_relative "sponsored_logs/version"
 require_relative "sponsored_logs/advertisers"
 require_relative "sponsored_logs/ads_file"
+require_relative "sponsored_logs/storage/base"
+require_relative "sponsored_logs/storage/memory"
+require_relative "sponsored_logs/storage/redis"
 require_relative "sponsored_logs/ledger"
 require_relative "sponsored_logs/configuration"
 require_relative "sponsored_logs/injector"
@@ -21,13 +24,14 @@ module SponsoredLogs
       configuration
     end
 
-    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil, selection: nil)
+    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil, selection: nil, storage: nil)
       configuration.probability = probability unless probability.nil?
       configuration.periodic    = periodic    unless periodic.nil?
       configuration.interval    = interval    unless interval.nil?
       configuration.output      = output      unless output.nil?
       configuration.ad_prefix   = ad_prefix   unless ad_prefix.nil?
       configuration.selection   = selection   unless selection.nil?
+      configuration.storage     = storage     unless storage.nil?
 
       # An explicit ads: list wins over a file path. A failed load leaves the
       # current list untouched (AdsFile.load already warned).
@@ -92,8 +96,15 @@ module SponsoredLogs
       line
     end
 
+    # Rebuilt when the configured storage adapter changes, so swapping storage
+    # via sponsor!(storage:) takes effect immediately.
+    #
     def ledger
-      @ledger ||= Ledger.new
+      if @ledger.nil? || @ledger_storage != configuration.storage
+        @ledger = Ledger.new(configuration.storage)
+        @ledger_storage = configuration.storage
+      end
+      @ledger
     end
 
     # Accrued fake ad economics: per-ad impressions and spend, plus totals.
