@@ -24,24 +24,12 @@ module SponsoredLogs
       configuration
     end
 
-    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil, selection: nil, store: nil)
-      configuration.probability = probability unless probability.nil?
-      configuration.periodic    = periodic    unless periodic.nil?
-      configuration.interval    = interval    unless interval.nil?
-      configuration.output      = output      unless output.nil?
-      configuration.ad_prefix   = ad_prefix   unless ad_prefix.nil?
-      configuration.selection   = selection   unless selection.nil?
-      configuration.store       = store       unless store.nil?
-
-      # An explicit ads: list wins over a file path. A failed load leaves the
-      # current list untouched (AdsFile.load already warned).
-      #
-      if !ads.nil?
-        configuration.ads = ads
-      elsif !ads_file.nil?
-        loaded = AdsFile.load(ads_file)
-        configuration.ads = loaded unless loaded.nil?
-      end
+    # Activate ad insertion, applying any settings from the options hash (see
+    # Configuration#assign for the recognized keys). Settings can also be set
+    # ahead of time with configure { |c| ... }.
+    #
+    def sponsor!(opts = {})
+      configuration.assign(opts)
 
       Injector.install!
       @active = true
@@ -64,7 +52,7 @@ module SponsoredLogs
     def sponsor_from_env!(env = ENV)
       return self unless Env.activate?(env)
 
-      sponsor!(**Env.options(env))
+      sponsor!(Env.options(env))
     end
 
     def active?

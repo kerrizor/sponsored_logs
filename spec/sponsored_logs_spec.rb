@@ -27,6 +27,59 @@ RSpec.describe SponsoredLogs do
       expect(described_class.configuration.probability).to eq(0.5)
       expect(described_class.configuration.interval).to eq(7)
     end
+
+    it "accepts an explicit options hash", :aggregate_failures do
+      described_class.sponsor!({ probability: 0.25, ad_prefix: "YO:" })
+
+      expect(described_class.configuration.probability).to eq(0.25)
+      expect(described_class.configuration.ad_prefix).to eq("YO:")
+    end
+  end
+
+  describe "Configuration#assign" do
+    let(:config) { SponsoredLogs::Configuration.new }
+    let(:sink) { StringIO.new }
+
+    it "applies direct settings", :aggregate_failures do
+      config.assign({ probability: 0.4, selection: :cpm }, warn_to: sink)
+
+      expect(config.probability).to eq(0.4)
+      expect(config.selection).to eq(:cpm)
+    end
+
+    it "accepts string keys" do
+      config.assign({ "probability" => 0.6 }, warn_to: sink)
+      expect(config.probability).to eq(0.6)
+    end
+
+    it "leaves unspecified settings untouched", :aggregate_failures do
+      config.assign({ probability: 0.9 }, warn_to: sink)
+
+      expect(config.probability).to eq(0.9)
+      expect(config.ad_prefix).to eq("[AD]") # default preserved
+    end
+
+    it "warns on an unknown key rather than raising", :aggregate_failures do
+      expect { config.assign({ bogus: 1 }, warn_to: sink) }.not_to raise_error
+      expect(sink.string).to include("unknown setting")
+      expect(sink.string).to include("bogus")
+    end
+
+    it "resolves ads_file into ads" do
+      Tempfile.create(["ads", ".json"]) do |f|
+        f.write('{"ads": [{"text": "FromFile", "weight": 1}]}')
+        f.flush
+        config.assign({ ads_file: f.path }, warn_to: sink)
+      end
+
+      expect(config.ads).to eq([{ text: "FromFile", weight: 1.0, cpm: 0.0 }])
+    end
+
+    it "prefers an explicit ads list over ads_file" do
+      config.assign({ ads: [{ text: "Inline", weight: 1 }], ads_file: "/no/such.json" }, warn_to: sink)
+
+      expect(config.ads).to eq([{ text: "Inline", weight: 1 }])
+    end
   end
 
   describe ".maybe_emit" do

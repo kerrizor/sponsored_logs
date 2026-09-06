@@ -10,7 +10,7 @@ module SponsoredLogs
 
         opts = Env.options
         opts[:output] ||= Rails.logger if Rails.respond_to?(:logger) && Rails.logger
-        SponsoredLogs.sponsor!(**opts)
+        SponsoredLogs.sponsor!(opts)
       end
     end
   end

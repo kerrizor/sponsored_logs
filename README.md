@@ -48,7 +48,7 @@ SponsoredLogs.active? # => true or false
 
 ## Configuration
 
-Pass options inline to `sponsor!`:
+`sponsor!` takes an options hash of settings to apply on activation:
 
 ```ruby
 SponsoredLogs.sponsor!(
@@ -59,13 +59,16 @@ SponsoredLogs.sponsor!(
 )
 ```
 
-Or configure with a block:
+Unknown keys are ignored with a warning rather than raising. To set things up
+ahead of time, or when you prefer a block, use `configure`:
 
 ```ruby
 SponsoredLogs.configure do |config|
   config.probability = 0.02
   config.ad_prefix = "AD:"
 end
+
+SponsoredLogs.sponsor! # activate with whatever is already configured
 ```
 
 Set `ad_prefix` to an empty string to omit the tag entirely.
