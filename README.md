@@ -255,6 +255,8 @@ Ship a **stakeholder-ready, C-suite-grade campaign performance dashboard** to
 production without writing a single line of frontend code. In a Rails app, mount
 the engine to expose your revenue Command Center:
 
+![The SponsoredLogs Command Center: real-time spend, impression delivery, and campaign status at a glance.](docs/dashboard.png)
+
 ```ruby
 # config/routes.rb
 mount SponsoredLogs::Engine => "/sponsored_logs_report"
