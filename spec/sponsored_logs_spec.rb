@@ -151,6 +151,46 @@ RSpec.describe SponsoredLogs do
 
       expect(described_class.report[:impressions]).to eq(0)
     end
+
+    it "rounds spend to cents", :aggregate_failures do
+      described_class.reset_ledger!
+      # 333 / 1000 * 13 = 4.329 -> rounds to 4.33
+      described_class.sponsor!(ads: [{ text: "odd", weight: 1, cpm: 13.0 }])
+      333.times { described_class.emit(StringIO.new) }
+      report = described_class.report
+
+      expect(report[:spend]).to eq(4.33)
+      expect(report[:ads].first[:spend]).to eq(4.33)
+    end
+  end
+
+  describe ".report_text" do
+    it "renders a table with a header, rows, and a total", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [{ text: "Solo", weight: 1, cpm: 20.0 }])
+      100.times { described_class.emit(StringIO.new) }
+
+      text = described_class.report_text
+
+      expect(text).to include("Ad")
+      expect(text).to include("Impr")
+      expect(text).to include("CPM")
+      expect(text).to include("Spend")
+      expect(text).to include("Solo")
+      expect(text).to match(/TOTAL\s+100\s+2\.00/) # 100/1000 * 20 = 2.00
+    end
+
+    it "orders rows by descending spend" do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [
+        { text: "cheap", weight: 1, cpm: 1.0 },
+        { text: "pricey", weight: 1, cpm: 99.0 }
+      ], selection: :cpm)
+      1000.times { described_class.emit(StringIO.new) }
+
+      text = described_class.report_text
+      expect(text.index("pricey")).to be < text.index("cheap")
+    end
   end
 
   describe "Advertisers" do

@@ -137,8 +137,22 @@ SponsoredLogs.report
 #    }
 ```
 
-`cpm` is tracked in both selection modes; it only affects *which* ad is chosen
-when `selection` is `:cpm`. Clear the tally with `SponsoredLogs.reset_ledger!`.
+Spend values are rounded to cents in the report; the underlying ledger keeps
+the raw figures. `cpm` is tracked in both selection modes; it only affects
+*which* ad is chosen when `selection` is `:cpm`. Clear the tally with
+`SponsoredLogs.reset_ledger!`.
+
+For a formatted, log-friendly table, use `SponsoredLogs.report_text`, which
+lists ads by descending spend:
+
+```
+Ad                          Impr      CPM      Spend
+----------------------------------------------------
+Brought to you by Contoso   1000    22.00      22.00
+Initech...                   500     8.00       4.00
+----------------------------------------------------
+TOTAL                       1500                26.00
+```
 
 ### Loading messages from a file
 

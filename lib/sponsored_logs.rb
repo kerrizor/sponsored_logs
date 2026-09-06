@@ -97,13 +97,34 @@ module SponsoredLogs
     end
 
     # Accrued fake ad economics: per-ad impressions and spend, plus totals.
+    # Spend is rounded to cents here; the ledger keeps the raw values.
     #
     def report
       {
         impressions: ledger.total_impressions,
-        spend: ledger.total_spend,
-        ads: ledger.entries.map(&:to_h)
+        spend: ledger.total_spend.round(2),
+        ads: ledger.entries.map { |entry| entry.to_h.merge(spend: entry.spend.round(2)) }
       }
+    end
+
+    # A formatted, log-friendly table of the current report, ready to print or
+    # log. Ads are listed by descending spend.
+    #
+    def report_text
+      data = report
+      rows = data[:ads].sort_by { |ad| -ad[:spend] }
+
+      width = rows.map { |ad| ad[:text].length }.push(4).max
+      lines = ["%-#{width}s  %8s  %7s  %9s" % %w[Ad Impr CPM Spend]]
+      lines << ("-" * (width + 30))
+
+      rows.each do |ad|
+        lines << "%-#{width}s  %8d  %7.2f  %9.2f" % [ad[:text], ad[:impressions], ad[:cpm], ad[:spend]]
+      end
+
+      lines << ("-" * (width + 30))
+      lines << ("%-#{width}s  %8d  %7s  %9.2f" % ["TOTAL", data[:impressions], "", data[:spend]])
+      lines.join("\n")
     end
 
     def reset_ledger!
