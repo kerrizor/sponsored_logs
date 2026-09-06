@@ -55,31 +55,18 @@
     <h2>Impressions by advertiser</h2>
     <%= bar_chart(@report[:ads], value: ->(ad) { ad[:impressions] }, format: ->(v) { v.to_i.to_s }) %>
 
-    <h2>Detail</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Creative</th>
-          <th>Status</th>
-          <th>Flight</th>
-          <th class="num">Impressions</th>
-          <th class="num">CPM</th>
-          <th class="num">Spend</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @report[:ads].sort_by { |ad| -ad[:spend] }.each do |ad| %>
-          <tr>
-            <td><%= ad[:text] %></td>
-            <td><%= status_badge(ad[:status]) %></td>
-            <td class="flight"><%= flight_window(ad[:starts_at], ad[:ends_at]) %></td>
-            <td class="num"><%= ad[:impressions] %></td>
-            <td class="num">$<%= format("%.2f", ad[:cpm]) %></td>
-            <td class="num">$<%= format("%.2f", ad[:spend]) %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+    <h2>Running campaigns</h2>
+    <%= campaign_table(@report[:ads]) %>
+  <% end %>
+
+  <% if @report[:upcoming].any? %>
+    <h2>Upcoming campaigns</h2>
+    <%= campaign_table(@report[:upcoming]) %>
+  <% end %>
+
+  <% if @report[:finished].any? %>
+    <h2>Finished campaigns</h2>
+    <%= campaign_table(@report[:finished]) %>
   <% end %>
 </body>
 </html>

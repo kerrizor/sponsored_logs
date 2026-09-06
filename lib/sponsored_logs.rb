@@ -97,13 +97,18 @@ module SponsoredLogs
     end
 
     # Accrued fake ad economics: per-ad impressions and spend, plus totals.
-    # Spend is rounded to cents here; the ledger keeps the raw values. Each row
-    # is enriched with its flight window and status, looked up from the
-    # configured ads by text (nil window / :evergreen when not configured).
+    # Spend is rounded to cents here; the ledger keeps the raw values.
+    #
+    # - ads:      impression-driven rows for messages that have served,
+    #             enriched with flight window and status.
+    # - upcoming: configured ads scheduled to start in the future (from config,
+    #             so zero-impression campaigns still appear).
+    # - finished: configured ads whose flight window has ended, served or not.
     #
     def report
       now = Time.now
       flights = flight_lookup
+      served = ledger.entries.to_h { |entry| [entry.text, entry] }
 
       ads = ledger.entries.map do |entry|
         flight = flights[entry.text] || {}
@@ -115,10 +120,15 @@ module SponsoredLogs
         )
       end
 
+      upcoming = configured_rows_with_status(:scheduled, now, served)
+      finished = configured_rows_with_status(:ended, now, served)
+
       {
         impressions: ledger.total_impressions,
         spend: ledger.total_spend.round(2),
-        ads: ads
+        ads: ads,
+        upcoming: upcoming,
+        finished: finished
       }
     end
 
@@ -155,6 +165,26 @@ module SponsoredLogs
     def flight_lookup
       Advertisers.normalize(configuration.ads).each_with_object({}) do |ad, acc|
         acc[ad[:text]] = { starts_at: ad[:starts_at], ends_at: ad[:ends_at] }
+      end
+    end
+
+    # Configured ads matching a flight status, as report rows. Impressions and
+    # spend come from the ledger when the ad has served, otherwise zero.
+    #
+    def configured_rows_with_status(status, now, served)
+      Advertisers.normalize(configuration.ads).filter_map do |ad|
+        next unless Advertisers.status(ad, now) == status
+
+        entry = served[ad[:text]]
+        {
+          text: ad[:text],
+          impressions: entry ? entry.impressions : 0,
+          cpm: ad[:cpm],
+          spend: entry ? entry.spend.round(2) : 0.0,
+          starts_at: ad[:starts_at],
+          ends_at: ad[:ends_at],
+          status: status
+        }
       end
     end
 

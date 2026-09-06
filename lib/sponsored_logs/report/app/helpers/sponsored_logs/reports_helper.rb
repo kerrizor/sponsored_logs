@@ -66,7 +66,41 @@ module SponsoredLogs
       "#{from} \u2192 #{to}"
     end
 
+    # A campaign detail table for a set of report rows, sorted by descending
+    # spend. Returns nil for an empty set so callers can skip the section.
+    #
+    def campaign_table(rows)
+      return if rows.nil? || rows.empty?
+
+      header = content_tag(:thead, content_tag(:tr,
+        safe_join([
+          content_tag(:th, "Creative"),
+          content_tag(:th, "Status"),
+          content_tag(:th, "Flight"),
+          content_tag(:th, "Impressions", class: "num"),
+          content_tag(:th, "CPM", class: "num"),
+          content_tag(:th, "Spend", class: "num")
+        ])))
+
+      body = content_tag(:tbody, safe_join(
+        rows.sort_by { |ad| -ad[:spend] }.map { |ad| campaign_row(ad) }
+      ))
+
+      content_tag(:table, safe_join([header, body]))
+    end
+
     private
+
+    def campaign_row(ad)
+      content_tag(:tr, safe_join([
+        content_tag(:td, ad[:text]),
+        content_tag(:td, status_badge(ad[:status])),
+        content_tag(:td, flight_window(ad[:starts_at], ad[:ends_at]), class: "flight"),
+        content_tag(:td, ad[:impressions], class: "num"),
+        content_tag(:td, "$#{format('%.2f', ad[:cpm])}", class: "num"),
+        content_tag(:td, "$#{format('%.2f', ad[:spend])}", class: "num")
+      ]))
+    end
 
     def svg_bar(label, value_label, y, bar_w)
       text_y = y + (BAR_HEIGHT / 2) + 4

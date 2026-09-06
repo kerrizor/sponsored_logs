@@ -70,6 +70,34 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     expect(last_response.body).to include("evergreen")
   end
 
+  it "shows upcoming and finished campaign sections", :aggregate_failures do
+    SponsoredLogs.configuration.ads = [
+      { text: "DashAd", weight: 1, cpm: 20.0 },
+      { text: "SoonAd", weight: 1, cpm: 5.0, starts_at: "2999-01-01" },
+      { text: "PastAd", weight: 1, cpm: 5.0, ends_at: "2000-01-01" }
+    ]
+
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include("Upcoming campaigns")
+    expect(last_response.body).to include("SoonAd")
+    expect(last_response.body).to include("Finished campaigns")
+    expect(last_response.body).to include("PastAd")
+  end
+
+  it "includes upcoming and finished groups in JSON", :aggregate_failures do
+    SponsoredLogs.configuration.ads = [
+      { text: "SoonAd", weight: 1, cpm: 5.0, starts_at: "2999-01-01" },
+      { text: "PastAd", weight: 1, cpm: 5.0, ends_at: "2000-01-01" }
+    ]
+
+    get "/sponsored_logs_report.json"
+    body = JSON.parse(last_response.body)
+
+    expect(body["upcoming"].map { |a| a["text"] }).to include("SoonAd")
+    expect(body["finished"].map { |a| a["text"] }).to include("PastAd")
+  end
+
   it "returns JSON via the .json suffix", :aggregate_failures do
     get "/sponsored_logs_report.json"
 

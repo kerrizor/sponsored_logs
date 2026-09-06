@@ -205,6 +205,41 @@ RSpec.describe SponsoredLogs do
       expect(described_class.report[:impressions]).to eq(0)
     end
 
+    it "lists scheduled ads under upcoming, even with zero impressions", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [
+        { text: "Live now", weight: 1, cpm: 5 },
+        { text: "Next month", weight: 1, cpm: 8, starts_at: "2999-01-01" }
+      ])
+      described_class.configuration.store.record(text: "Live now", weight: 1, cpm: 5.0)
+
+      report = described_class.report
+      upcoming = report[:upcoming]
+
+      expect(upcoming.map { |a| a[:text] }).to eq(["Next month"])
+      expect(upcoming.first[:impressions]).to eq(0)
+      expect(upcoming.first[:status]).to eq(:scheduled)
+      expect(report[:ads].map { |a| a[:text] }).to eq(["Live now"])
+    end
+
+    it "lists ended ads under finished, served or not", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [
+        { text: "Ran and ended", weight: 1, cpm: 10, ends_at: "2000-01-01" },
+        { text: "Never ran, ended", weight: 1, cpm: 10, ends_at: "2000-01-01" }
+      ])
+      described_class.configuration.store.record(text: "Ran and ended", weight: 1, cpm: 10.0)
+
+      finished = described_class.report[:finished]
+
+      expect(finished.map { |a| a[:text] }).to contain_exactly("Ran and ended", "Never ran, ended")
+      ran = finished.find { |a| a[:text] == "Ran and ended" }
+      never = finished.find { |a| a[:text] == "Never ran, ended" }
+      expect(ran[:impressions]).to eq(1)
+      expect(never[:impressions]).to eq(0)
+      expect(never[:status]).to eq(:ended)
+    end
+
     it "enriches rows with flight window and status", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [

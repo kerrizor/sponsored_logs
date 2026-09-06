@@ -24,13 +24,16 @@ module SponsoredLogs
     #
     def json_report(report)
       report.merge(
-        ads: report[:ads].map do |ad|
-          ad.merge(
-            starts_at: ad[:starts_at]&.iso8601,
-            ends_at: ad[:ends_at]&.iso8601
-          )
-        end
+        ads: iso_rows(report[:ads]),
+        upcoming: iso_rows(report[:upcoming]),
+        finished: iso_rows(report[:finished])
       )
+    end
+
+    def iso_rows(rows)
+      rows.map do |ad|
+        ad.merge(starts_at: ad[:starts_at]&.iso8601, ends_at: ad[:ends_at]&.iso8601)
+      end
     end
   end
 end
