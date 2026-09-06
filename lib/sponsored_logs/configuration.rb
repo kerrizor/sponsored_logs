@@ -10,11 +10,12 @@ module SponsoredLogs
     attr_accessor :ads
     attr_accessor :selection
     attr_accessor :store
+    attr_accessor :report_page
 
     # Settings that map 1:1 onto an accessor. ads/ads_file are handled
     # separately because they interact (ads wins; ads_file loads into ads).
     #
-    DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store].freeze
+    DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store report_page].freeze
     KNOWN_KEYS = (DIRECT_KEYS + %i[ads ads_file]).freeze
 
     def initialize
@@ -26,6 +27,7 @@ module SponsoredLogs
       @ads = Advertisers::DEFAULT_ADS
       @selection = :weight
       @store = Ledger::Store::Memory.new
+      @report_page = false
     end
 
     # Apply a hash of settings. Symbol or string keys are accepted; unknown

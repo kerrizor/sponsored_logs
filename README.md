@@ -158,6 +158,26 @@ Initech...                   500     8.00       4.00
 TOTAL                       1500                26.00
 ```
 
+### Report page (Rails)
+
+In a Rails app, mount the engine to expose a campaign performance dashboard:
+
+```ruby
+# config/routes.rb
+mount SponsoredLogs::Engine => "/sponsored_logs_report"
+```
+
+The page is opt-in twice over: it is reachable only where you mount it, and only
+when enabled in configuration (off by default):
+
+```ruby
+SponsoredLogs.configure { |c| c.report_page = true }
+```
+
+When disabled, the route returns 404. `GET /sponsored_logs_report` renders an
+HTML dashboard; request JSON with the `.json` suffix or an
+`Accept: application/json` header to get the same data as `SponsoredLogs.report`.
+
 ## Tracking impressions
 
 The ledger keeps impressions in a pluggable **store**. By default they live in

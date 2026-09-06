@@ -156,3 +156,4 @@ end
 SponsoredLogs.sponsor_from_env!
 
 require_relative "sponsored_logs/railtie" if defined?(Rails::Railtie)
+require_relative "sponsored_logs/engine" if defined?(Rails::Engine)

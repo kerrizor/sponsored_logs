@@ -16,12 +16,20 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1"
 
-  spec.files = Dir["lib/**/*.rb", "lib/**/templates/**/*", "README.md", "LICENSE.txt"]
+  spec.files = Dir[
+    "lib/**/*.rb",
+    "lib/**/templates/**/*",
+    "lib/sponsored_logs/report/**/*",
+    "README.md",
+    "LICENSE.txt"
+  ].uniq
   spec.require_paths = ["lib"]
 
   spec.add_dependency "logger", "~> 1.6"
 
   spec.add_development_dependency "activerecord", ">= 7.0"
+  spec.add_development_dependency "rack-test", ">= 2.0"
+  spec.add_development_dependency "railties", ">= 7.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "sqlite3", ">= 1.6"
 end

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Campaign Performance</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+           margin: 2rem auto; max-width: 60rem; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #666; margin-top: 0; font-size: 0.9rem; }
+    .totals { display: flex; gap: 2rem; margin: 1.5rem 0; }
+    .totals div { background: #f4f4f6; border-radius: 8px; padding: 1rem 1.25rem; }
+    .totals .label { display: block; font-size: 0.75rem; text-transform: uppercase;
+                     letter-spacing: 0.05em; color: #888; }
+    .totals .value { font-size: 1.6rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid #eee; }
+    th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { color: #888; font-style: italic; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Campaign Performance</h1>
+  <p class="subtitle">Sponsored message delivery report</p>
+
+  <div class="totals">
+    <div>
+      <span class="label">Impressions</span>
+      <span class="value"><%= @report[:impressions] %></span>
+    </div>
+    <div>
+      <span class="label">Total spend</span>
+      <span class="value">$<%= format("%.2f", @report[:spend]) %></span>
+    </div>
+  </div>
+
+  <% if @report[:ads].empty? %>
+    <p class="empty">No impressions delivered yet.</p>
+  <% else %>
+    <table>
+      <thead>
+        <tr>
+          <th>Creative</th>
+          <th class="num">Impressions</th>
+          <th class="num">CPM</th>
+          <th class="num">Spend</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @report[:ads].sort_by { |ad| -ad[:spend] }.each do |ad| %>
+          <tr>
+            <td><%= ad[:text] %></td>
+            <td class="num"><%= ad[:impressions] %></td>
+            <td class="num">$<%= format("%.2f", ad[:cpm]) %></td>
+            <td class="num">$<%= format("%.2f", ad[:spend]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</body>
+</html>
