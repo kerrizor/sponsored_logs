@@ -72,7 +72,7 @@ RSpec.describe SponsoredLogs do
         config.assign({ ads_file: f.path }, warn_to: sink)
       end
 
-      expect(config.ads).to eq([{ text: "FromFile", weight: 1.0, cpm: 0.0 }])
+      expect(config.ads.first).to include(text: "FromFile", weight: 1.0, cpm: 0.0)
     end
 
     it "prefers an explicit ads list over ads_file" do
@@ -336,26 +336,95 @@ RSpec.describe SponsoredLogs do
 
   describe "Advertisers.normalize" do
     it "defaults weight to 1 and cpm to 0" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }])).to eq([{ text: "x", weight: 1.0, cpm: 0.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first)
+        .to include(text: "x", weight: 1.0, cpm: 0.0)
     end
 
     it "accepts string keys from parsed JSON" do
-      expect(SponsoredLogs::Advertisers.normalize([{ "text" => "x", "weight" => 5, "cpm" => 12 }]))
-        .to eq([{ text: "x", weight: 5.0, cpm: 12.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ "text" => "x", "weight" => 5, "cpm" => 12 }]).first)
+        .to include(text: "x", weight: 5.0, cpm: 12.0)
     end
 
     it "clamps a negative weight to zero" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -3 }])).to eq([{ text: "x", weight: 0.0, cpm: 0.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -3 }]).first)
+        .to include(weight: 0.0)
     end
 
     it "defaults an unparseable weight to 1 and unparseable cpm to 0" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope", cpm: "bad" }]))
-        .to eq([{ text: "x", weight: 1.0, cpm: 0.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope", cpm: "bad" }]).first)
+        .to include(weight: 1.0, cpm: 0.0)
     end
 
     it "drops entries with blank text", :aggregate_failures do
       expect(SponsoredLogs::Advertisers.normalize([{ text: "  ", weight: 1 }])).to eq([])
       expect(SponsoredLogs::Advertisers.normalize(["a bare string"])).to eq([])
+    end
+
+    it "defaults flight bounds to nil", :aggregate_failures do
+      ad = SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first
+      expect(ad[:starts_at]).to be_nil
+      expect(ad[:ends_at]).to be_nil
+    end
+
+    it "parses string flight bounds into Time", :aggregate_failures do
+      ad = SponsoredLogs::Advertisers.normalize(
+        [{ text: "x", starts_at: "2026-01-01T00:00:00Z", ends_at: "2026-12-31T23:59:59Z" }]
+      ).first
+      expect(ad[:starts_at]).to be_a(Time)
+      expect(ad[:ends_at]).to be_a(Time)
+      expect(ad[:starts_at].year).to eq(2026)
+    end
+
+    it "accepts Time objects directly" do
+      t = Time.now
+      ad = SponsoredLogs::Advertisers.normalize([{ text: "x", starts_at: t }]).first
+      expect(ad[:starts_at]).to be_within(1).of(t)
+    end
+
+    it "turns an unparseable flight bound into nil" do
+      ad = SponsoredLogs::Advertisers.normalize([{ text: "x", starts_at: "not a date" }]).first
+      expect(ad[:starts_at]).to be_nil
+    end
+  end
+
+  describe "Advertisers flighting" do
+    let(:now) { Time.utc(2026, 6, 15, 12, 0, 0) }
+
+    def pick_text(ads, **opts)
+      SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(ads, **opts), "")
+    end
+
+    it "excludes ads whose window has not started" do
+      ads = [{ text: "future", weight: 1, starts_at: "2026-07-01T00:00:00Z" }]
+      # Only live pool member is gone -> falls back to defaults, never "future".
+      results = Array.new(50) { pick_text(ads, now: now) }
+      expect(results).not_to include("future")
+    end
+
+    it "excludes ads whose window has ended" do
+      ads = [{ text: "expired", weight: 1, ends_at: "2026-01-01T00:00:00Z" }]
+      results = Array.new(50) { pick_text(ads, now: now) }
+      expect(results).not_to include("expired")
+    end
+
+    it "includes ads inside their window" do
+      ads = [
+        { text: "live", weight: 1, starts_at: "2026-06-01T00:00:00Z", ends_at: "2026-07-01T00:00:00Z" }
+      ]
+      expect(pick_text(ads, now: now)).to eq("live")
+    end
+
+    it "treats missing bounds as open-ended", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers.live?({ starts_at: nil, ends_at: nil }, now)).to be(true)
+    end
+
+    it "picks only the live ad from a mixed pool" do
+      ads = [
+        { text: "live", weight: 1 },
+        { text: "expired", weight: 1, ends_at: "2026-01-01T00:00:00Z" }
+      ]
+      results = Array.new(100) { pick_text(ads, now: now) }
+      expect(results.uniq).to eq(["live"])
     end
   end
 end

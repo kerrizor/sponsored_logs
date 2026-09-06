@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 module SponsoredLogs
   module Advertisers
     DEFAULT_ADS = [
@@ -17,9 +19,12 @@ module SponsoredLogs
 
     SELECTION_MODES = %i[weight cpm].freeze
 
-    # Coerce a raw list into [{ text:, weight:, cpm: }] entries. Accepts symbol-
+    # Coerce a raw list into
+    # [{ text:, weight:, cpm:, starts_at:, ends_at: }] entries. Accepts symbol-
     # or string-keyed hashes; drops entries with blank text. Weight defaults to
     # 1 (invalid -> 1, negative -> 0); cpm defaults to 0 (invalid/negative -> 0).
+    # starts_at/ends_at are optional flight bounds (nil = unbounded); an
+    # unparseable value becomes nil rather than raising.
     #
     def self.normalize(ads)
       Array(ads).filter_map do |entry|
@@ -31,7 +36,9 @@ module SponsoredLogs
         {
           text: text,
           weight: coerce_number(entry[:weight] || entry["weight"], default: 1.0),
-          cpm: coerce_number(entry[:cpm] || entry["cpm"], default: 0.0)
+          cpm: coerce_number(entry[:cpm] || entry["cpm"], default: 0.0),
+          starts_at: coerce_time(entry[:starts_at] || entry["starts_at"]),
+          ends_at: coerce_time(entry[:ends_at] || entry["ends_at"])
         }
       end
     end
@@ -45,19 +52,49 @@ module SponsoredLogs
       default
     end
 
-    # Pick one normalized ad entry using the given selection mode. In :cpm mode
-    # the cpm drives the odds; if every cpm is 0 we fall back to manual weights
-    # so selection never stalls. A pool whose weights all sum to zero falls back
-    # to the built-in list. Returns nil only when the pool is truly empty.
+    # Parse a flight bound into a Time. Accepts a Time/DateTime directly or a
+    # string (ISO 8601 etc.); anything unparseable or blank becomes nil.
     #
-    def self.pick(ads = DEFAULT_ADS, mode: :weight)
-      pool = normalize(ads)
-      pool = normalize(DEFAULT_ADS) if pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
+    def self.coerce_time(value)
+      return nil if value.nil?
+      return value.to_time if value.respond_to?(:to_time)
+
+      str = value.to_s.strip
+      return nil if str.empty?
+
+      Time.parse(str)
+    rescue ArgumentError, TypeError
+      nil
+    end
+
+    # Whether an ad is within its flight window at `now`. Missing bounds are
+    # open-ended (nil starts_at = always started; nil ends_at = never ends).
+    #
+    def self.live?(ad, now)
+      return false if ad[:starts_at] && now < ad[:starts_at]
+      return false if ad[:ends_at] && now > ad[:ends_at]
+
+      true
+    end
+
+    # Pick one normalized ad entry using the given selection mode, considering
+    # only ads live at `now`. In :cpm mode the cpm drives the odds; if every
+    # live cpm is 0 we fall back to manual weights so selection never stalls. A
+    # pool with no live ads (or whose live weights sum to zero) falls back to
+    # the built-in list. Returns nil only when the pool is truly empty.
+    #
+    def self.pick(ads = DEFAULT_ADS, mode: :weight, now: Time.now)
+      pool = live(normalize(ads), now)
+      pool = live(normalize(DEFAULT_ADS), now) if pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
 
       key = SELECTION_MODES.include?(mode) ? mode : :weight
       key = :weight if key == :cpm && pool.sum { |ad| ad[:cpm] }.zero?
 
       weighted_pick(pool, key)
+    end
+
+    def self.live(pool, now)
+      pool.select { |ad| live?(ad, now) }
     end
 
     def self.render(entry, prefix = "[AD]")

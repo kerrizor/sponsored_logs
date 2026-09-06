@@ -123,6 +123,25 @@ A missing `weight` defaults to `1`; a negative weight is treated as `0`. A
 missing `cpm` defaults to `0`. A pool that is empty, has only blank text, or
 sums to zero weight falls back to the built-in list.
 
+### Flighting (start and end dates)
+
+Each ad may carry optional `starts_at` / `ends_at` bounds so a campaign only
+runs within its window. Only ads live at the current time are eligible for
+selection:
+
+```ruby
+SponsoredLogs.sponsor!(ads: [
+  { text: "Summer sale!", weight: 1, starts_at: "2026-06-01", ends_at: "2026-09-01" },
+  { text: "Always on",    weight: 1 } # no bounds = always eligible
+])
+```
+
+Bounds accept a `Time` or a parseable string; an unparseable value is ignored
+(treated as no bound). A missing `starts_at` means "already started"; a missing
+`ends_at` means "never ends". If no ads are live, selection falls back to the
+built-in list. Flight bounds also work in the JSON ads file
+(`"starts_at"` / `"ends_at"`).
+
 ## Spend reporting
 
 `cpm` is the cost per 1,000 impressions. Each inserted message counts as one
