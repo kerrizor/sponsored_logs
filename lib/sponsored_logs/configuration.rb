@@ -8,6 +8,7 @@ module SponsoredLogs
     attr_accessor :output
     attr_accessor :ad_prefix
     attr_accessor :ads
+    attr_accessor :selection
 
     def initialize
       @probability = 0.001
@@ -16,6 +17,7 @@ module SponsoredLogs
       @output = $stdout
       @ad_prefix = "[AD]"
       @ads = Advertisers::DEFAULT_ADS
+      @selection = :weight
     end
   end
 end

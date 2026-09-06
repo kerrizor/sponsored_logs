@@ -14,23 +14,23 @@ RSpec.describe SponsoredLogs::AdsFile do
   let(:sink) { StringIO.new }
 
   describe ".load" do
-    it "reads weighted ads from a well-formed file" do
-      with_file('{"ads": [{"text": "one", "weight": 3}, {"text": "two", "weight": 1}]}') do |path|
+    it "reads weighted ads with cpm from a well-formed file" do
+      with_file('{"ads": [{"text": "one", "weight": 3, "cpm": 20}, {"text": "two", "weight": 1}]}') do |path|
         expect(described_class.load(path, warn_to: sink)).to eq(
-          [{ text: "one", weight: 3.0 }, { text: "two", weight: 1.0 }]
+          [{ text: "one", weight: 3.0, cpm: 20.0 }, { text: "two", weight: 1.0, cpm: 0.0 }]
         )
       end
     end
 
-    it "defaults a missing weight to 1" do
+    it "defaults a missing weight to 1 and cpm to 0" do
       with_file('{"ads": [{"text": "one"}]}') do |path|
-        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "one", weight: 1.0 }])
+        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "one", weight: 1.0, cpm: 0.0 }])
       end
     end
 
     it "drops entries with blank text" do
       with_file('{"ads": [{"text": "kept", "weight": 1}, {"text": "  "}]}') do |path|
-        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "kept", weight: 1.0 }])
+        expect(described_class.load(path, warn_to: sink)).to eq([{ text: "kept", weight: 1.0, cpm: 0.0 }])
       end
     end
 

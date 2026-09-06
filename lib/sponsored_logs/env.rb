@@ -15,6 +15,7 @@ module SponsoredLogs
       opts[:periodic]    = truthy?(env["SPONSORED_LOGS_PERIODIC"])  if env["SPONSORED_LOGS_PERIODIC"]
       opts[:ad_prefix]   = env["SPONSORED_LOGS_PREFIX"]             if env["SPONSORED_LOGS_PREFIX"]
       opts[:ads_file]    = env["SPONSORED_LOGS_ADS_FILE"]           if env["SPONSORED_LOGS_ADS_FILE"]
+      opts[:selection]   = env["SPONSORED_LOGS_SELECTION"].to_sym   if env["SPONSORED_LOGS_SELECTION"]
       opts
     end
 

@@ -114,6 +114,43 @@ RSpec.describe SponsoredLogs do
     it "defaults ads to the built-in list" do
       expect(described_class.configuration.ads).to eq(SponsoredLogs::Advertisers::DEFAULT_ADS)
     end
+
+    it "defaults selection to :weight" do
+      expect(described_class.configuration.selection).to eq(:weight)
+    end
+  end
+
+  describe ".report" do
+    it "starts empty", :aggregate_failures do
+      described_class.reset_ledger!
+      report = described_class.report
+
+      expect(report[:impressions]).to eq(0)
+      expect(report[:spend]).to eq(0.0)
+      expect(report[:ads]).to eq([])
+    end
+
+    it "tallies impressions and accrues cpm-based spend", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [{ text: "Solo", weight: 1, cpm: 20.0 }])
+
+      1000.times { described_class.emit(StringIO.new) }
+      report = described_class.report
+
+      expect(report[:impressions]).to eq(1000)
+      # 1000 impressions / 1000 * $20 CPM = $20.00
+      expect(report[:spend]).to be_within(0.0001).of(20.0)
+      expect(report[:ads].first).to include(text: "Solo", impressions: 1000, cpm: 20.0)
+      expect(report[:ads].first[:spend]).to be_within(0.0001).of(20.0)
+    end
+
+    it "reset_ledger! clears accrued totals" do
+      described_class.sponsor!(ads: [{ text: "x", weight: 1, cpm: 5 }])
+      described_class.emit(StringIO.new)
+      described_class.reset_ledger!
+
+      expect(described_class.report[:impressions]).to eq(0)
+    end
   end
 
   describe "Advertisers" do
@@ -121,26 +158,34 @@ RSpec.describe SponsoredLogs do
       expect(SponsoredLogs::Advertisers::DEFAULT_ADS.length).to eq(10)
     end
 
+    def render(ads = nil, prefix: "[AD]", mode: :weight)
+      if ads
+        SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(ads, mode: mode), prefix)
+      else
+        SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick, prefix)
+      end
+    end
+
     it "defaults to an [AD] tagged line" do
-      expect(SponsoredLogs::Advertisers.sample).to start_with("[AD] ")
+      expect(render).to start_with("[AD] ")
     end
 
     it "accepts a custom prefix" do
-      expect(SponsoredLogs::Advertisers.sample("YO:")).to start_with("YO: ")
+      expect(render(prefix: "YO:")).to start_with("YO: ")
     end
 
     it "samples from a supplied ad list" do
-      expect(SponsoredLogs::Advertisers.sample("[AD]", [{ text: "Custom", weight: 1 }])).to eq("[AD] Custom")
+      expect(render([{ text: "Custom", weight: 1 }])).to eq("[AD] Custom")
     end
 
     it "falls back to defaults when the supplied list is empty", :aggregate_failures do
-      expect(SponsoredLogs::Advertisers.sample("[AD]", [])).to start_with("[AD] ")
-      expect(SponsoredLogs::Advertisers.sample("[AD]", [{ text: "", weight: 1 }])).to start_with("[AD] ")
+      expect(render([])).to start_with("[AD] ")
+      expect(render([{ text: "", weight: 1 }])).to start_with("[AD] ")
     end
 
     it "falls back to defaults when every weight is zero" do
       zeroed = [{ text: "never", weight: 0 }]
-      expect(SponsoredLogs::Advertisers.sample("[AD]", zeroed)).not_to include("never")
+      expect(render(zeroed)).not_to include("never")
     end
 
     it "never picks a zero-weighted ad when others are available" do
@@ -148,7 +193,7 @@ RSpec.describe SponsoredLogs do
         { text: "picked", weight: 1 },
         { text: "skipped", weight: 0 }
       ]
-      results = Array.new(200) { SponsoredLogs::Advertisers.sample("", pool) }
+      results = Array.new(200) { render(pool, prefix: "") }
       expect(results.uniq).to eq(["picked"])
     end
 
@@ -157,30 +202,62 @@ RSpec.describe SponsoredLogs do
         { text: "common", weight: 9 },
         { text: "rare", weight: 1 }
       ]
-      results = Array.new(3000) { SponsoredLogs::Advertisers.sample("", pool) }
+      results = Array.new(3000) { render(pool, prefix: "") }
       common = results.count("common")
 
       # Expect roughly 90% common; assert a wide band to stay non-flaky.
       expect(common).to be > 2400
       expect(common).to be < 2999
     end
+
+    it "picks by cpm in :cpm selection mode", :aggregate_failures do
+      pool = [
+        { text: "pricey", weight: 1, cpm: 90 },
+        { text: "cheap", weight: 1, cpm: 10 }
+      ]
+      results = Array.new(3000) { render(pool, prefix: "", mode: :cpm) }
+      pricey = results.count("pricey")
+
+      expect(pricey).to be > 2400
+      expect(pricey).to be < 2999
+    end
+
+    it "ignores cpm when in :weight mode" do
+      pool = [
+        { text: "high cpm low weight", weight: 0, cpm: 99 },
+        { text: "picked", weight: 1, cpm: 1 }
+      ]
+      results = Array.new(200) { render(pool, prefix: "", mode: :weight) }
+      expect(results.uniq).to eq(["picked"])
+    end
+
+    it "falls back to weights when :cpm mode has all-zero cpm" do
+      pool = [
+        { text: "picked", weight: 1, cpm: 0 },
+        { text: "skipped", weight: 0, cpm: 0 }
+      ]
+      results = Array.new(200) { render(pool, prefix: "", mode: :cpm) }
+      expect(results.uniq).to eq(["picked"])
+    end
   end
 
   describe "Advertisers.normalize" do
-    it "defaults a missing weight to 1" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }])).to eq([{ text: "x", weight: 1.0 }])
+    it "defaults weight to 1 and cpm to 0" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }])).to eq([{ text: "x", weight: 1.0, cpm: 0.0 }])
     end
 
     it "accepts string keys from parsed JSON" do
-      expect(SponsoredLogs::Advertisers.normalize([{ "text" => "x", "weight" => 5 }])).to eq([{ text: "x", weight: 5.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ "text" => "x", "weight" => 5, "cpm" => 12 }]))
+        .to eq([{ text: "x", weight: 5.0, cpm: 12.0 }])
     end
 
     it "clamps a negative weight to zero" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -3 }])).to eq([{ text: "x", weight: 0.0 }])
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -3 }])).to eq([{ text: "x", weight: 0.0, cpm: 0.0 }])
     end
 
-    it "defaults an unparseable weight to 1" do
-      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope" }])).to eq([{ text: "x", weight: 1.0 }])
+    it "defaults an unparseable weight to 1 and unparseable cpm to 0" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope", cpm: "bad" }]))
+        .to eq([{ text: "x", weight: 1.0, cpm: 0.0 }])
     end
 
     it "drops entries with blank text", :aggregate_failures do

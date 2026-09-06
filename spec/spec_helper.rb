@@ -5,10 +5,12 @@ require "sponsored_logs"
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = :expect }
 
-  # Leave the global patches inert AND reset configuration between examples so
-  # neither ad emission nor mutated config can leak into other specs.
+  # Leave the global patches inert AND reset configuration and the spend ledger
+  # between examples so neither ad emission, mutated config, nor accrued spend
+  # can leak into other specs.
   config.after do
     SponsoredLogs.unsponsor!
+    SponsoredLogs.reset_ledger!
     SponsoredLogs.instance_variable_set(:@configuration, nil)
   end
 end
