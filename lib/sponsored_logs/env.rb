@@ -14,6 +14,7 @@ module SponsoredLogs
       opts[:interval]    = Float(env["SPONSORED_LOGS_INTERVAL"])    if env["SPONSORED_LOGS_INTERVAL"]
       opts[:periodic]    = truthy?(env["SPONSORED_LOGS_PERIODIC"])  if env["SPONSORED_LOGS_PERIODIC"]
       opts[:ad_prefix]   = env["SPONSORED_LOGS_PREFIX"]             if env["SPONSORED_LOGS_PREFIX"]
+      opts[:ads_file]    = env["SPONSORED_LOGS_ADS_FILE"]           if env["SPONSORED_LOGS_ADS_FILE"]
       opts
     end
 

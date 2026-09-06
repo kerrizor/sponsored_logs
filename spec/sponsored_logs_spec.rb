@@ -2,6 +2,7 @@
 
 require "stringio"
 require "logger"
+require "tempfile"
 
 RSpec.describe SponsoredLogs do
   describe ".sponsor! and .unsponsor!" do
@@ -83,6 +84,25 @@ RSpec.describe SponsoredLogs do
       described_class.sponsor!(ads: ["Only ad in the pool"])
       described_class.emit(io)
       expect(io.string).to eq("[AD] Only ad in the pool\n")
+    end
+
+    it "emits from an ads_file" do
+      io = StringIO.new
+      Tempfile.create(["ads", ".json"]) do |f|
+        f.write('{"ads": ["From a file"]}')
+        f.flush
+        described_class.sponsor!(ads_file: f.path)
+      end
+      described_class.emit(io)
+      expect(io.string).to eq("[AD] From a file\n")
+    end
+
+    it "keeps the existing list when an ads_file fails to load" do
+      io = StringIO.new
+      described_class.sponsor!(ads: ["still here"])
+      described_class.sponsor!(ads_file: "/no/such.json") # warns, no-op on the list
+      described_class.emit(io)
+      expect(io.string).to eq("[AD] still here\n")
     end
   end
 

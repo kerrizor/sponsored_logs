@@ -4,6 +4,7 @@ require "logger"
 
 require_relative "sponsored_logs/version"
 require_relative "sponsored_logs/advertisers"
+require_relative "sponsored_logs/ads_file"
 require_relative "sponsored_logs/configuration"
 require_relative "sponsored_logs/injector"
 require_relative "sponsored_logs/env"
@@ -19,13 +20,22 @@ module SponsoredLogs
       configuration
     end
 
-    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil)
+    def sponsor!(probability: nil, periodic: nil, interval: nil, output: nil, ad_prefix: nil, ads: nil, ads_file: nil)
       configuration.probability = probability unless probability.nil?
       configuration.periodic    = periodic    unless periodic.nil?
       configuration.interval    = interval    unless interval.nil?
       configuration.output      = output      unless output.nil?
       configuration.ad_prefix   = ad_prefix   unless ad_prefix.nil?
-      configuration.ads         = ads         unless ads.nil?
+
+      # An explicit ads: list wins over a file path. A failed load leaves the
+      # current list untouched (AdsFile.load already warned).
+      #
+      if !ads.nil?
+        configuration.ads = ads
+      elsif !ads_file.nil?
+        loaded = AdsFile.load(ads_file)
+        configuration.ads = loaded unless loaded.nil?
+      end
 
       Injector.install!
       @active = true

@@ -100,6 +100,28 @@ end
 
 An empty or blank pool falls back to the built-in list.
 
+### Loading messages from a file
+
+Messages can also be supplied as a JSON file, which works for both manual and
+environment activation. The file must be an object with an `"ads"` array:
+
+```json
+{
+  "ads": [
+    "Brought to you by Contoso, the enterprise you invented for the demo.",
+    "Initech. We put the TPS in your reports."
+  ]
+}
+```
+
+```ruby
+SponsoredLogs.sponsor!(ads_file: "config/sponsored_logs.json")
+```
+
+If both `ads` and `ads_file` are given, the inline `ads` list wins. If the file
+is missing, unreadable, malformed, or not shaped as expected, a warning is
+written to stderr and the built-in list is used instead.
+
 ## Activation via the environment
 
 Set `SPONSORED_LOGS` to activate at require time, without changing code:
@@ -117,6 +139,7 @@ SPONSORED_LOGS_PROBABILITY=0.01
 SPONSORED_LOGS_INTERVAL=15
 SPONSORED_LOGS_PERIODIC=true
 SPONSORED_LOGS_PREFIX="SPONSORED:"
+SPONSORED_LOGS_ADS_FILE=config/sponsored_logs.json
 ```
 
 Environment activation and manual activation coexist. Setting the environment

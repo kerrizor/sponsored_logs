@@ -25,14 +25,16 @@ RSpec.describe SponsoredLogs::Env do
         "SPONSORED_LOGS_PROBABILITY" => "0.25",
         "SPONSORED_LOGS_INTERVAL" => "15",
         "SPONSORED_LOGS_PERIODIC" => "true",
-        "SPONSORED_LOGS_PREFIX" => "SPONSORED:"
+        "SPONSORED_LOGS_PREFIX" => "SPONSORED:",
+        "SPONSORED_LOGS_ADS_FILE" => "/tmp/ads.json"
       }
 
       expect(described_class.options(env)).to eq(
         probability: 0.25,
         interval: 15.0,
         periodic: true,
-        ad_prefix: "SPONSORED:"
+        ad_prefix: "SPONSORED:",
+        ads_file: "/tmp/ads.json"
       )
     end
   end
