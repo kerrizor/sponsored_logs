@@ -9,19 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Per-ad `advertiser` field so creatives roll up to an advertiser account; defaults to `"Unattributed"` when omitted, and the built-in ads carry real brand names
-- `report[:advertisers]` rollup: per-advertiser impressions, spend, and ad count, sorted by spend
-- Dashboard "Advertiser accounts" table and an Advertiser column on the campaign tables
-- Share-of-impressions donut alongside the share-of-spend donut; both cap at the top 7 non-zero advertisers and fold the remainder into an "Other" slice
+- Per-ad `advertiser` field so creatives roll up to an advertiser account; defaults to `"Unattributed"` when omitted, and the built-in ads carry real brand names ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
+- `report[:advertisers]` rollup: per-advertiser impressions, spend, and ad count, sorted by spend ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
+- Dashboard "Advertiser accounts" table and an Advertiser column on the campaign tables ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
+- Share-of-impressions donut alongside the share-of-spend donut; both cap at the top 7 non-zero advertisers and fold the remainder into an "Other" slice ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
 
 ### Changed
 
-- Charts now aggregate by advertiser instead of per-ad, so labels are advertiser names rather than ad copy
-- The gold gradient now accents the totals card values (the spend/impressions bar chart it previously filled has been removed as redundant with the share-of-spend donut)
+- Charts now aggregate by advertiser instead of per-ad, so labels are advertiser names rather than ad copy ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
+- The gold gradient now accents the totals card values (the spend/impressions bar chart it previously filled has been removed as redundant with the share-of-spend donut) ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
 
 ### Removed
 
-- Redundant "Spend by advertiser" bar chart (superseded by the share-of-spend donut) and the now-unused bar-chart helper
+- Redundant "Spend by advertiser" bar chart (superseded by the share-of-spend donut) and the now-unused bar-chart helper ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
 
 ## [0.2.0] - 2026-09-06
 
