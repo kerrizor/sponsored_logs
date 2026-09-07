@@ -61,7 +61,10 @@
     .totals .label { display: block; font-size: 0.66rem; text-transform: uppercase;
                      letter-spacing: 0.09em; color: var(--muted); font-family: var(--mono); }
     .totals .value { font-size: 1.9rem; font-weight: 800; font-family: var(--mono);
-                     color: var(--gold-1); margin-top: 0.35rem; }
+                     margin-top: 0.35rem;
+                     background: linear-gradient(90deg, var(--gold-0), var(--gold-1));
+                     -webkit-background-clip: text; background-clip: text;
+                     -webkit-text-fill-color: transparent; color: var(--gold-1); }
 
     h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em;
          color: var(--cyan); font-family: var(--mono); margin: 2.25rem 0 0.75rem; }
@@ -80,18 +83,12 @@
     .empty { color: var(--faint); font-style: italic; margin-top: 1.5rem;
              font-family: var(--mono); }
 
-    .chart { display: block; }
-    .chart .bar-label { font-size: 12px; fill: var(--muted); font-family: var(--mono); }
-    .chart .bar-value { font-size: 12px; fill: var(--gold-1); font-variant-numeric: tabular-nums;
-                        font-family: var(--mono); }
-    .chart .bar-track { fill: #0f1727; rx: 4; }
-    .chart .bar-fill { fill: url(#slGold); rx: 4; }
-
     .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
              color: #0b0f19; font-size: 0.62rem; text-transform: uppercase;
              letter-spacing: 0.04em; font-weight: 800; font-family: var(--mono); }
     td.flight { font-variant-numeric: tabular-nums; color: var(--muted);
                 white-space: nowrap; font-family: var(--mono); font-size: 0.8rem; }
+    td.advertiser { font-weight: 700; color: var(--gold-1); white-space: nowrap; }
 
     /* Share-of-spend donut */
     .donut-wrap { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
@@ -122,16 +119,6 @@
   </style>
 </head>
 <body>
-  <!-- Shared gradient for SVG bar fills, matching the banner's gold. -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs>
-      <linearGradient id="slGold" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#f59e0b" />
-        <stop offset="100%" stop-color="#fbbf24" />
-      </linearGradient>
-    </defs>
-  </svg>
-
   <div class="wrap">
     <header class="masthead">
       <span class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></span>
@@ -153,17 +140,23 @@
     </div>
   </div>
 
+  <% if @report[:advertisers].any? %>
+    <h2>Advertiser accounts</h2>
+    <%= advertiser_table(@report[:advertisers]) %>
+  <% end %>
+
   <% if @report[:ads].empty? %>
     <p class="empty">No impressions delivered yet.</p>
   <% else %>
     <h2>Share of spend</h2>
-    <%= donut_chart(@report[:ads]) %>
+    <%= donut_chart(@report[:advertisers], label: ->(a) { a[:advertiser] },
+                                           empty: "No spend yet.") %>
 
-    <h2>Spend by advertiser</h2>
-    <%= bar_chart(@report[:ads], value: ->(ad) { ad[:spend] }, format: ->(v) { "$#{format('%.2f', v)}" }) %>
-
-    <h2>Impressions by advertiser</h2>
-    <%= bar_chart(@report[:ads], value: ->(ad) { ad[:impressions] }, format: ->(v) { v.to_i.to_s }) %>
+    <h2>Share of impressions</h2>
+    <%= donut_chart(@report[:advertisers], label: ->(a) { a[:advertiser] },
+                                           value: ->(a) { a[:impressions] },
+                                           format: ->(v) { v.to_i.to_s },
+                                           empty: "No impressions yet.") %>
 
     <h2>Running campaigns</h2>
     <%= campaign_table(@report[:ads]) %>

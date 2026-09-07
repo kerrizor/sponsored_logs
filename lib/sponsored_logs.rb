@@ -120,7 +120,8 @@ module SponsoredLogs
         spend: ledger.total_spend.round(2),
         ads: grouped[:running],
         upcoming: grouped[:upcoming],
-        finished: grouped[:finished]
+        finished: grouped[:finished],
+        advertisers: advertiser_rollup(grouped)
       }
     end
 
@@ -189,6 +190,7 @@ module SponsoredLogs
     #
     def report_row(text, meta, entry, status)
       {
+        advertiser: meta[:advertiser] || Advertisers::DEFAULT_ADVERTISER,
         text: text,
         impressions: entry ? entry.impressions : 0,
         cpm: entry ? entry.cpm : meta[:cpm].to_f,
@@ -198,6 +200,22 @@ module SponsoredLogs
         cap: meta[:cap],
         status: status
       }
+    end
+
+    # Roll every report row up to its advertiser: total impressions, spend, and
+    # ad count per advertiser account, sorted by spend descending.
+    #
+    def advertiser_rollup(grouped)
+      by_advertiser = grouped.values.flatten.group_by { |row| row[:advertiser] }
+      accounts = by_advertiser.map do |advertiser, ads|
+        {
+          advertiser: advertiser,
+          ads: ads.size,
+          impressions: ads.sum { |a| a[:impressions] },
+          spend: ads.sum { |a| a[:spend] }.round(2)
+        }
+      end
+      accounts.sort_by { |a| -a[:spend] }
     end
 
     def start_periodic_thread

@@ -13,13 +13,7 @@ module SponsoredLogs
       exhausted: "#f59e0b"
     }.freeze
 
-    BAR_HEIGHT = 22
-    BAR_GAP = 10
-    LABEL_WIDTH = 320
-    TRACK_WIDTH = 360
-    VALUE_PAD = 8
-
-    # Segment palette for the share-of-spend donut, drawn from the banner
+    # Segment palette for the donut charts, drawn from the banner
     # (gold, cyan, greens, violets) and cycled for larger pools.
     #
     DONUT_COLORS = %w[
@@ -27,50 +21,30 @@ module SponsoredLogs
       #34d399 #60a5fa #f472b6 #fb923c #22d3ee
     ].freeze
 
-    # Render a horizontal bar chart as inline SVG from report ad rows.
-    # `value` picks the numeric field per row; `format` renders the label.
+    DONUT_TOP_N = 7
+
+    # Donut chart as inline SVG. Each row becomes an arc sized by its fraction
+    # of the total, with a legend beside it. Zero/negative values are omitted;
+    # only the top DONUT_TOP_N slices are shown individually and the remainder
+    # is rolled into a single "Other" slice so the ring still totals 100%.
     #
-    def bar_chart(ads, value:, format:)
-      rows = ads.map { |ad| [ad[:text], value.call(ad).to_f] }
-                .sort_by { |(_text, v)| -v }
-      return content_tag(:p, "No data yet.", class: "empty") if rows.empty?
-
-      max = rows.map { |(_t, v)| v }.max
-      max = 1.0 if max <= 0
-
-      height = rows.size * (BAR_HEIGHT + BAR_GAP)
-      width = LABEL_WIDTH + TRACK_WIDTH + 90
-
-      bars = rows.each_with_index.map do |(text, v), i|
-        y = i * (BAR_HEIGHT + BAR_GAP)
-        bar_w = ((v / max) * TRACK_WIDTH).round(2)
-        svg_bar(text, format.call(v), y, bar_w)
-      end.join
-
-      content_tag(
-        :svg,
-        raw(bars),
-        xmlns: "http://www.w3.org/2000/svg",
-        viewBox: "0 0 #{width} #{height}",
-        role: "img",
-        class: "chart",
-        style: "width:100%;max-width:#{width}px;height:auto;"
-      )
-    end
-
-    # Share-of-spend donut as inline SVG. Each ad becomes an arc sized by its
-    # fraction of total spend, rendered as an offset stroke on a circle, with a
-    # legend beside it. Ads with zero spend are omitted.
+    # `label` picks the slice name, `value` the number to slice on (default
+    # spend), `format` renders the legend value (default dollars), and `empty`
+    # is the message when there's nothing to show.
     #
-    def donut_chart(ads)
-      rows = ads.map { |ad| [ad[:text], ad[:spend].to_f] }
-                .select { |(_t, v)| v.positive? }
-                .sort_by { |(_t, v)| -v }
+    def donut_chart(rows_in, label: ->(row) { row[:text] },
+                    value: ->(row) { row[:spend] },
+                    format: ->(v) { "$#{Kernel.format("%.2f", v)}" },
+                    empty: "No data yet.")
+      rows = rows_in.map { |row| [label.call(row), value.call(row).to_f] }
+                    .select { |(_t, v)| v.positive? }
+                    .sort_by { |(_t, v)| -v }
+      return content_tag(:p, empty, class: "empty") if rows.empty?
+
+      rows = collapse_to_top(rows, DONUT_TOP_N)
       total = rows.sum { |(_t, v)| v }
-      return content_tag(:p, "No spend yet.", class: "empty") if total <= 0
-
       radius = 60
-      donut_svg(donut_segments(rows, total, radius), donut_legend(rows, total), radius)
+      donut_svg(donut_segments(rows, total, radius), donut_legend(rows, total, format), radius)
     end
 
     # Delivery-to-goal bars for capped ads across all groups: a filled track
@@ -87,6 +61,24 @@ module SponsoredLogs
 
       rows = capped.map { |ad| cap_progress_row(ad) }.join
       content_tag(:div, raw(rows), class: "cap-list")
+    end
+
+    # Per-advertiser rollup table (advertiser accounts), sorted by spend.
+    # Returns nil for an empty set so the caller can skip the section.
+    #
+    def advertiser_table(rows)
+      return if rows.nil? || rows.empty?
+
+      header = content_tag(:thead, content_tag(:tr,
+                                               safe_join([
+                                                           content_tag(:th, "Advertiser"),
+                                                           content_tag(:th, "Ads", class: "num"),
+                                                           content_tag(:th, "Impressions", class: "num"),
+                                                           content_tag(:th, "Spend", class: "num")
+                                                         ])))
+
+      body = content_tag(:tbody, safe_join(rows.map { |a| advertiser_row(a) }))
+      content_tag(:table, safe_join([header, body]))
     end
 
     # Colored pill for an ad's flight status (:active/:scheduled/:ended/:evergreen).
@@ -116,6 +108,7 @@ module SponsoredLogs
 
       header = content_tag(:thead, content_tag(:tr,
                                                safe_join([
+                                                           content_tag(:th, "Advertiser"),
                                                            content_tag(:th, "Creative"),
                                                            content_tag(:th, "Status"),
                                                            content_tag(:th, "Flight"),
@@ -135,12 +128,22 @@ module SponsoredLogs
 
     def campaign_row(ad)
       content_tag(:tr, safe_join([
+                                   content_tag(:td, ad[:advertiser], class: "advertiser"),
                                    content_tag(:td, ad[:text]),
                                    content_tag(:td, status_badge(ad[:status])),
                                    content_tag(:td, flight_window(ad[:starts_at], ad[:ends_at]), class: "flight"),
                                    content_tag(:td, ad[:impressions], class: "num"),
                                    content_tag(:td, "$#{format("%.2f", ad[:cpm])}", class: "num"),
                                    content_tag(:td, "$#{format("%.2f", ad[:spend])}", class: "num")
+                                 ]))
+    end
+
+    def advertiser_row(account)
+      content_tag(:tr, safe_join([
+                                   content_tag(:td, account[:advertiser], class: "advertiser"),
+                                   content_tag(:td, account[:ads], class: "num"),
+                                   content_tag(:td, account[:impressions], class: "num"),
+                                   content_tag(:td, "$#{format("%.2f", account[:spend])}", class: "num")
                                  ]))
     end
 
@@ -156,9 +159,20 @@ module SponsoredLogs
       end.join
     end
 
-    def donut_legend(rows, total)
+    # Keep the top n rows; fold the rest into a single "Other" slice so the
+    # donut still represents the whole.
+    #
+    def collapse_to_top(rows, count)
+      return rows if rows.size <= count
+
+      top = rows.first(count)
+      other = rows.drop(count).sum { |(_t, v)| v }
+      top + [["Other", other]]
+    end
+
+    def donut_legend(rows, total, format)
       rows.each_with_index.map do |(text, v), i|
-        donut_legend_row(text, v, v / total, DONUT_COLORS[i % DONUT_COLORS.size])
+        donut_legend_row(text, v, v / total, DONUT_COLORS[i % DONUT_COLORS.size], format)
       end.join
     end
 
@@ -175,12 +189,12 @@ module SponsoredLogs
           stroke-dashoffset="#{dash_offset}"/>)
     end
 
-    def donut_legend_row(text, spend, frac, color)
+    def donut_legend_row(text, value, frac, color, format)
       pct = (frac * 100).round(1)
       %(<div class="legend-row">
           <span class="legend-swatch" style="background:#{color};"></span>
           <span class="legend-label">#{esc(truncate_label(text))}</span>
-          <span class="legend-value">$#{format("%.2f", spend)} &middot; #{pct}%</span>
+          <span class="legend-value">#{esc(format.call(value))} &middot; #{pct}%</span>
         </div>)
     end
 
@@ -216,19 +230,6 @@ module SponsoredLogs
             <div class="cap-fill#{" full" if full}" style="width:#{pct}%;"></div>
           </div>
         </div>)
-    end
-
-    def svg_bar(label, value_label, y, bar_w)
-      text_y = y + (BAR_HEIGHT / 2) + 4
-      label_text = esc(truncate_label(label))
-      value_text = esc(value_label)
-
-      %(
-        <text x="0" y="#{text_y}" class="bar-label">#{label_text}</text>
-        <rect x="#{LABEL_WIDTH}" y="#{y}" width="#{TRACK_WIDTH}" height="#{BAR_HEIGHT}" class="bar-track"/>
-        <rect x="#{LABEL_WIDTH}" y="#{y}" width="#{bar_w}" height="#{BAR_HEIGHT}" class="bar-fill"/>
-        <text x="#{LABEL_WIDTH + bar_w + VALUE_PAD}" y="#{text_y}" class="bar-value">#{value_text}</text>
-      )
     end
 
     # Truncate the raw text first, then escape, so we never slice through an

@@ -222,6 +222,29 @@ RSpec.describe SponsoredLogs do
       expect(report[:ads].map { |a| a[:text] }).to eq(["Live now"])
     end
 
+    it "rolls impressions and spend up by advertiser", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: [
+                                 { advertiser: "Acme", text: "Acme A", weight: 1, cpm: 10.0 },
+                                 { advertiser: "Acme", text: "Acme B", weight: 1, cpm: 10.0 },
+                                 { advertiser: "Globex", text: "Globex A", weight: 1, cpm: 20.0 }
+                               ])
+      1000.times { described_class.configuration.store.record(text: "Acme A", weight: 1, cpm: 10.0) }
+      1000.times { described_class.configuration.store.record(text: "Acme B", weight: 1, cpm: 10.0) }
+      1000.times { described_class.configuration.store.record(text: "Globex A", weight: 1, cpm: 20.0) }
+
+      accounts = described_class.report[:advertisers]
+      acme = accounts.find { |a| a[:advertiser] == "Acme" }
+      globex = accounts.find { |a| a[:advertiser] == "Globex" }
+
+      expect(acme[:ads]).to eq(2)
+      expect(acme[:impressions]).to eq(2000)
+      expect(acme[:spend]).to eq(20.0) # 2 * (1000/1000 * 10)
+      expect(globex[:spend]).to eq(20.0)
+      # Sorted by spend descending; Acme and Globex tie at 20 so both present.
+      expect(accounts.map { |a| a[:advertiser] }).to contain_exactly("Acme", "Globex")
+    end
+
     it "moves a capped-out ad into finished with :exhausted status", :aggregate_failures do
       described_class.reset_ledger!
       described_class.sponsor!(ads: [{ text: "Capped", weight: 1, cpm: 10, cap: 5 }])
@@ -458,6 +481,15 @@ RSpec.describe SponsoredLogs do
     it "defaults cap to nil and parses a positive cap", :aggregate_failures do
       expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first[:cap]).to be_nil
       expect(SponsoredLogs::Advertisers.normalize([{ text: "x", cap: 250 }]).first[:cap]).to eq(250)
+    end
+
+    it "defaults advertiser to Unattributed and keeps a supplied name", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first[:advertiser]).to eq("Unattributed")
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", advertiser: "Acme" }]).first[:advertiser]).to eq("Acme")
+    end
+
+    it "treats a blank advertiser as Unattributed" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", advertiser: "  " }]).first[:advertiser]).to eq("Unattributed")
     end
   end
 

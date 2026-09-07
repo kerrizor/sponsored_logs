@@ -8,9 +8,9 @@ AllCops:
     - "pkg/**/*"
     - "lib/generators/**/templates/**/*"
 
-# Ad copy and SVG markup are legitimately long lines.
+# Ad copy (now advertiser-prefixed) and SVG markup are legitimately long lines.
 Layout/LineLength:
-  Max: 140
+  Max: 200
 
 # Specs and the ad catalog are naturally long; blocks in specs are expected.
 Metrics/BlockLength:
