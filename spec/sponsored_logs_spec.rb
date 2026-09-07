@@ -1140,4 +1140,175 @@ RSpec.describe SponsoredLogs do
       described_class.configuration.ascii_only = false
     end
   end
+
+  # ANSI gold [AD] prefix: 256-color gold (\e[38;5;214m) wrapped around the
+  # prefix, emitted only when it is safe to do so (a real TTY, NO_COLOR unset)
+  # or forced via config. Non-TTY sinks stay byte-identical to the plain line.
+  #
+  let(:gold) { "\e[38;5;214m" }
+  let(:reset) { "\e[0m" }
+
+  describe SponsoredLogs::Color do
+    describe ".colorize" do
+      it "wraps text in 256-color gold when enabled" do
+        expect(described_class.colorize("[AD]", enabled: true)).to eq("#{gold}[AD]#{reset}")
+      end
+
+      it "returns the input unchanged when disabled" do
+        expect(described_class.colorize("[AD]", enabled: false)).to eq("[AD]")
+      end
+    end
+  end
+
+  describe ".emit ANSI gold prefix" do
+    let(:ad) { [{ text: "Gilded impression", weight: 1 }] }
+
+    it "gilds the prefix when the IO target is a TTY", :aggregate_failures do
+      io = StringIO.new
+      allow(io).to receive(:tty?).and_return(true)
+      described_class.sponsor!(ads: ad)
+      described_class.emit(io)
+
+      expect(io.string).to include("#{gold}[AD]#{reset}")
+      expect(io.string).to eq("#{gold}[AD]#{reset} Gilded impression\n")
+    end
+
+    it "emits a byte-identical plain line to a non-TTY IO", :aggregate_failures do
+      io = StringIO.new # StringIO#tty? is false
+      described_class.sponsor!(ads: ad)
+      described_class.emit(io)
+
+      expect(io.string).not_to include("\e[")
+      expect(io.string).to eq("[AD] Gilded impression\n")
+    end
+
+    it "never gilds a Logger target", :aggregate_failures do
+      buffer = StringIO.new
+      logger = Logger.new(buffer)
+      logger.formatter = ->(_s, _t, _p, msg) { "#{msg}\n" }
+      described_class.sponsor!(ads: ad)
+      described_class.emit(logger)
+
+      expect(buffer.string).not_to include("\e[")
+      expect(buffer.string).to include("[AD] Gilded impression")
+    end
+
+    it "stays plain on a TTY when NO_COLOR is set (:auto)", :aggregate_failures do
+      io = StringIO.new
+      allow(io).to receive(:tty?).and_return(true)
+      described_class.sponsor!(ads: ad)
+      stub_const("ENV", ENV.to_h.merge("NO_COLOR" => "1"))
+      described_class.emit(io)
+
+      expect(io.string).not_to include("\e[")
+      expect(io.string).to eq("[AD] Gilded impression\n")
+    end
+
+    it "gilds on a TTY when NO_COLOR is empty (:auto)", :aggregate_failures do
+      io = StringIO.new
+      allow(io).to receive(:tty?).and_return(true)
+      described_class.sponsor!(ads: ad)
+      stub_const("ENV", ENV.to_h.merge("NO_COLOR" => ""))
+      described_class.emit(io)
+
+      expect(io.string).to include("#{gold}[AD]#{reset}")
+    end
+
+    it "gilds a non-TTY IO when color is :always" do
+      io = StringIO.new # not a tty
+      described_class.sponsor!(ads: ad, color: :always)
+      described_class.emit(io)
+
+      expect(io.string).to eq("#{gold}[AD]#{reset} Gilded impression\n")
+    end
+
+    it "gilds even when NO_COLOR is set if color is :always" do
+      io = StringIO.new
+      described_class.sponsor!(ads: ad, color: :always)
+      stub_const("ENV", ENV.to_h.merge("NO_COLOR" => "1"))
+      described_class.emit(io)
+
+      expect(io.string).to include("#{gold}[AD]#{reset}")
+    end
+
+    it "never gilds a TTY when color is :never", :aggregate_failures do
+      io = StringIO.new
+      allow(io).to receive(:tty?).and_return(true)
+      described_class.sponsor!(ads: ad, color: :never)
+      described_class.emit(io)
+
+      expect(io.string).not_to include("\e[")
+      expect(io.string).to eq("[AD] Gilded impression\n")
+    end
+  end
+
+  describe "configuration color" do
+    it "defaults color to :auto" do
+      expect(described_class.configuration.color).to eq(:auto)
+    end
+
+    it "accepts a valid color mode via sponsor!" do
+      described_class.sponsor!(color: :always)
+      expect(described_class.configuration.color).to eq(:always)
+    end
+
+    it "coerces an invalid color value to :auto" do
+      described_class.sponsor!(color: :chartreuse)
+      expect(described_class.configuration.color).to eq(:auto)
+    end
+  end
+
+  describe "SPONSORED_LOGS_COLOR env parsing" do
+    it "maps auto/always/never strings to the matching symbol", :aggregate_failures do
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_COLOR" => "always" })[:color]).to eq(:always)
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_COLOR" => "never" })[:color]).to eq(:never)
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_COLOR" => "auto" })[:color]).to eq(:auto)
+    end
+
+    it "coerces an invalid env value to :auto" do
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_COLOR" => "neon" })[:color]).to eq(:auto)
+    end
+
+    it "leaves color out of ENV options when unset" do
+      expect(SponsoredLogs::Env.options({})).not_to have_key(:color)
+    end
+  end
+
+  describe "Advertisers.render color" do
+    it "gilds the prefix of a :text ad when color is on" do
+      out = SponsoredLogs::Advertisers.render({ text: "Hi" }, "[AD]", color: true)
+      expect(out).to eq("#{gold}[AD]#{reset} Hi")
+    end
+
+    it "leaves the :text prefix plain when color is off" do
+      out = SponsoredLogs::Advertisers.render({ text: "Hi" }, "[AD]", color: false)
+      expect(out).to eq("[AD] Hi")
+    end
+  end
+
+  describe "Banner color" do
+    def banner(text, prefix: "[AD]", box: :light, color: false)
+      ad = { text: text, format: :banner, box: box }
+      SponsoredLogs::Advertisers.render(ad, prefix, color: color)
+    end
+
+    it "gilds the prefix tag in the top border when color is on", :aggregate_failures do
+      top = banner("Copy", color: true).split("\n").first
+
+      expect(top).to include("#{gold}[AD]#{reset}")
+      expect(top).to start_with("┌─ #{gold}[AD]#{reset} ─")
+      expect(top).to end_with("┐")
+    end
+
+    it "keeps the visible box aligned when the prefix is gilded", :aggregate_failures do
+      colored = banner("Alignment check", color: true).split("\n")
+      plain = banner("Alignment check", color: false).split("\n")
+
+      # Strip the zero-width escapes; the visible frame must match the plain one
+      # exactly, byte-for-byte, so the gold codes cost the border no columns.
+      #
+      visible = colored.map { |line| line.gsub(/\e\[[0-9;]*m/, "") }
+      expect(visible).to eq(plain)
+    end
+  end
 end

@@ -4,12 +4,18 @@ module SponsoredLogs
   class Configuration
     attr_accessor :probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store, :report_page,
                   :ascii_only, :house_ads
+    attr_reader :color
+
+    # Gilding modes for the [AD] prefix. :auto gilds only on a NO_COLOR-clear
+    # TTY; :always forces gold (overriding NO_COLOR); :never stays plain.
+    #
+    COLOR_MODES = %i[auto always never].freeze
 
     # Settings that map 1:1 onto an accessor. ads/ads_file are handled
     # separately because they interact (ads wins; ads_file loads into ads).
     #
     DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store report_page ascii_only
-                     house_ads].freeze
+                     house_ads color].freeze
     KNOWN_KEYS = (DIRECT_KEYS + %i[ads ads_file]).freeze
 
     def initialize
@@ -24,6 +30,15 @@ module SponsoredLogs
       @report_page = false
       @ascii_only = false
       @house_ads = true
+      @color = :auto
+    end
+
+    # Coerce any unrecognized gilding mode back to :auto so a stray value never
+    # forces or suppresses color unexpectedly.
+    #
+    def color=(value)
+      symbol = value.to_s.strip.downcase.to_sym
+      @color = COLOR_MODES.include?(symbol) ? symbol : :auto
     end
 
     # Apply a hash of settings. Symbol or string keys are accepted; unknown

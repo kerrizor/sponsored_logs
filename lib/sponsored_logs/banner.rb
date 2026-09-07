@@ -23,7 +23,7 @@ module SponsoredLogs
     # purchased with the plain +/-/| fallback set. Inner span matches
     # "<vert> <60 cols> <vert>" so every corner and edge lines up.
     #
-    def self.render(entry, prefix, ascii_only)
+    def self.render(entry, prefix, ascii_only, color: false)
       top, top_r, bot, bot_r, horiz, vert = GLYPHS[ascii_only ? :ascii : (entry[:box] || :light)]
       span = WIDTH + 2
 
@@ -31,17 +31,24 @@ module SponsoredLogs
         "#{vert} #{line.ljust(WIDTH)} #{vert}"
       end
 
-      [top_border(prefix, top, top_r, horiz, span), *body, "#{bot}#{horiz * span}#{bot_r}"].join("\n")
+      corners = [top, top_r, horiz]
+      [top_border(prefix, corners, span, color: color), *body, "#{bot}#{horiz * span}#{bot_r}"].join("\n")
     end
 
     # Top border with the prefix embedded as "<h> [AD] <h-fill>". A blank
-    # prefix collapses to a solid rule (no gap, no tag).
+    # prefix collapses to a solid rule (no gap, no tag). The fill math is
+    # computed against the PLAIN prefix, then the gilded tag is swapped in --
+    # ANSI escapes are zero-width, so gilding must not shift the border count.
+    # corners is [top-left, top-right, horizontal].
     #
-    def self.top_border(prefix, corner, corner_r, horiz, span)
+    def self.top_border(prefix, corners, span, color: false)
+      corner, corner_r, horiz = corners
       return "#{corner}#{horiz * span}#{corner_r}" if prefix.empty?
 
       tag = " #{prefix} "
-      "#{corner}#{horiz}#{tag}#{horiz * (span - 1 - tag.length)}#{corner_r}"
+      fill = horiz * (span - 1 - tag.length)
+      gilded = " #{Color.colorize(prefix, enabled: color)} "
+      "#{corner}#{horiz}#{gilded}#{fill}#{corner_r}"
     end
 
     # Word-wrap text to width columns, breaking a single word longer than the
