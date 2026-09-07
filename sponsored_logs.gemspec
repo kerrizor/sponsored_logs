@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
   DESC
   spec.homepage = "https://github.com/kerrizor/sponsored_logs"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.1"
+  spec.required_ruby_version = ">= 3.2"
 
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"

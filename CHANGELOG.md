@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Redundant "Spend by advertiser" bar chart (superseded by the share-of-spend donut) and the now-unused bar-chart helper ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
+- Support for Ruby 3.1: dropped from the CI matrix, `required_ruby_version` raised to `>= 3.2`, and RuboCop's `TargetRubyVersion` aligned to match. Rails 8.1 no longer resolves on 3.1 ([#3](https://github.com/kerrizor/sponsored_logs/pull/3))
 
 ## [0.2.0] - 2026-09-06
 
