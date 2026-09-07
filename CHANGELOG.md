@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-ad `format: :banner` — premium box-drawn, multi-line placement that turns a single log line into a full above-the-fold impression unit. The `ad_prefix` embeds in the top border; the ~60-column body word-wraps (long words break mid-word so nothing overflows the frame)
+- Per-ad `box` impact tier for banners: `:light` (standard), `:heavy` (premium impact), or `:double` (maximum impact); unrecognized tiers settle to `:light`
+- Global `ascii_only` config (and `SPONSORED_LOGS_ASCII_ONLY` env var) that overrides every box tier with the portable `+`/`-`/`|` glyph set for log sinks that mangle Unicode
 - Per-ad `advertiser` field so creatives roll up to an advertiser account; defaults to `"Unattributed"` when omitted, and the built-in ads carry real brand names ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
 - `report[:advertisers]` rollup: per-advertiser impressions, spend, and ad count, sorted by spend ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
 - Dashboard "Advertiser accounts" table and an Advertiser column on the campaign tables ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))

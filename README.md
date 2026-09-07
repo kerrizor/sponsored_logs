@@ -170,6 +170,7 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `ads`         | top 10     | The pool of messages to draw from.                             |
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
 | `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
+| `ascii_only`  | `false`    | Force portable `+`/`-`/`\|` banner borders (see Premium banner inventory). |
 
 ## 💹 The auction engine
 
@@ -258,6 +259,63 @@ SponsoredLogs.sponsor!(ads: [
 A missing, zero, negative, or unparseable `cap` means unlimited. Caps are
 enforced against the ledger's recorded impressions, so with a persistent store
 they hold across process restarts. `cap` also works in the JSON ads file.
+
+### 🖼️ Premium banner inventory (above-the-fold placements)
+
+The one-line placement was always the entry-level SKU. For advertisers ready to
+**own the viewport**, set `format: :banner` and graduate a single log line into
+a full, box-drawn, above-the-fold impression unit — the highest-value real
+estate the log surface has to offer. Your `ad_prefix` is promoted straight into
+the top border as a masthead:
+
+```ruby
+SponsoredLogs.sponsor!(ads: [
+  { text: "Brought to you by Contoso, the enterprise you invented for the demo.",
+    format: :banner, box: :double }
+])
+```
+
+```
+╔═ [AD] ═══════════════════════════════════════════════════════╗
+║ Brought to you by Contoso, the enterprise you invented for   ║
+║ the demo.                                                    ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+The body word-wraps to ~60 columns of premium column-inches; a single word too
+long for the frame breaks mid-word rather than overflow the inventory.
+
+**Impact tiers.** The `box` field is the impact tier the advertiser buys —
+priced, like everything, by border weight:
+
+| `box`      | Frame            | Positioning        |
+| ---------- | ---------------- | ------------------ |
+| `:light`   | `┌─ … ─┐` (default) | standard banner |
+| `:heavy`   | `┏━ … ━┓`         | premium impact     |
+| `:double`  | `╔═ … ═╗`         | maximum impact     |
+
+Anything the exchange doesn't recognize settles to `:light`, and any ad without
+a `format` renders as the classic `[AD]` line exactly as before — **the
+supercycle only ever expands the inventory, never reprices what already ships.**
+
+**Universal compatibility (`ascii_only`).** Some downstream log sinks are not
+yet ready for the box-drawing renaissance. Set `ascii_only` (globally, or via
+the `SPONSORED_LOGS_ASCII_ONLY` environment variable) to render every tier with
+the portable `+`/`-`/`|` glyph set, guaranteeing **100% viewability across even
+the most legacy terminal**:
+
+```ruby
+SponsoredLogs.configure { |config| config.ascii_only = true }
+```
+
+```
++- [AD] -------------------------------------------------------+
+| Brought to you by Contoso, the enterprise you invented for   |
+| the demo.                                                    |
++--------------------------------------------------------------+
+```
+
+Both `format` and `box` also travel in the JSON ads file.
 
 ## 💰 Attribution & revenue analytics
 
