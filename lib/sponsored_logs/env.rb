@@ -8,16 +8,25 @@ module SponsoredLogs
       truthy?(env["SPONSORED_LOGS"])
     end
 
+    # Maps each SPONSORED_LOGS_* variable to its option key and a coercer. Only
+    # variables actually present are applied, so the manual sponsor! path is
+    # untouched. Add a new override by extending this table.
+    #
+    OPTION_MAP = {
+      "SPONSORED_LOGS_PROBABILITY" => [:probability, ->(v) { Float(v) }],
+      "SPONSORED_LOGS_INTERVAL" => [:interval, ->(v) { Float(v) }],
+      "SPONSORED_LOGS_PERIODIC" => [:periodic, ->(v) { truthy?(v) }],
+      "SPONSORED_LOGS_PREFIX" => [:ad_prefix, ->(v) { v }],
+      "SPONSORED_LOGS_ADS_FILE" => [:ads_file, ->(v) { v }],
+      "SPONSORED_LOGS_SELECTION" => [:selection, :to_sym.to_proc],
+      "SPONSORED_LOGS_ASCII_ONLY" => [:ascii_only, ->(v) { truthy?(v) }],
+      "SPONSORED_LOGS_HOUSE_ADS" => [:house_ads, ->(v) { truthy?(v) }]
+    }.freeze
+
     def self.options(env = ENV)
-      opts = {}
-      opts[:probability] = Float(env["SPONSORED_LOGS_PROBABILITY"]) if env["SPONSORED_LOGS_PROBABILITY"]
-      opts[:interval]    = Float(env["SPONSORED_LOGS_INTERVAL"])    if env["SPONSORED_LOGS_INTERVAL"]
-      opts[:periodic]    = truthy?(env["SPONSORED_LOGS_PERIODIC"])  if env["SPONSORED_LOGS_PERIODIC"]
-      opts[:ad_prefix]   = env["SPONSORED_LOGS_PREFIX"]             if env["SPONSORED_LOGS_PREFIX"]
-      opts[:ads_file]    = env["SPONSORED_LOGS_ADS_FILE"]           if env["SPONSORED_LOGS_ADS_FILE"]
-      opts[:selection]   = env["SPONSORED_LOGS_SELECTION"].to_sym   if env["SPONSORED_LOGS_SELECTION"]
-      opts[:ascii_only]  = truthy?(env["SPONSORED_LOGS_ASCII_ONLY"]) if env["SPONSORED_LOGS_ASCII_ONLY"]
-      opts
+      OPTION_MAP.each_with_object({}) do |(var, (key, coerce)), opts|
+        opts[key] = coerce.call(env[var]) if env[var]
+      end
     end
 
     def self.truthy?(value)

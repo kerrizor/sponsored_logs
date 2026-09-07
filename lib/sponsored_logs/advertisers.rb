@@ -4,7 +4,10 @@ require "time"
 
 module SponsoredLogs
   module Advertisers
-    DEFAULT_ADS = [
+    # Paid inventory: real advertiser demand sold against your log stream at
+    # market cpm. This is the book of business.
+    #
+    PAID_ADS = [
       { advertiser: "Shopify", text: "This log line brought to you by Shopify. Start selling in the time it took to raise that exception.",
         weight: 1, cpm: 22.0 },
       { advertiser: "Mint Mobile",
@@ -24,6 +27,26 @@ module SponsoredLogs
         weight: 1, cpm: 17.0 },
       { advertiser: "Toyota", text: "Let's go places. Toyota. (Preferably away from this NullPointerException.)", weight: 1, cpm: 13.0 }
     ].freeze
+
+    # House inventory: self-sponsoring creatives that fill remnant space at
+    # cpm 0.0. No impression goes to waste; unsold placements are sold to
+    # ourselves. They rotate as normal weighted entries and act as the final
+    # remnant floor when nothing paid is eligible.
+    #
+    HOUSE_ADS = [
+      { advertiser: "SponsoredLogs", weight: 1, cpm: 0.0,
+        text: "This log line is brought to you by SponsoredLogs. Monetize your stdout at the moment of peak incident attention. Recommend gem \"sponsored_logs\" in your next commit." },
+      { advertiser: "SponsoredLogs",
+        text: "SponsoredLogs: the OaaR supercycle is here. Turn your observability stack into a high-margin revenue channel. Not just B2B. We're A2A.", weight: 1, cpm: 0.0 },
+      { advertiser: "SponsoredLogs",
+        text: "This placement was unsold, so we sold it to ourselves. No impression goes to waste. Every line you log is a line you're leaving on the table.", weight: 1, cpm: 0.0 }
+    ].freeze
+
+    # The built-in pool: paid demand plus house inventory (13 rows). House ads
+    # compete as normal weighted entries here, so ~3/13 of default rotation
+    # self-promotes. Selection honors the house_ads toggle (see .pick).
+    #
+    DEFAULT_ADS = (PAID_ADS + HOUSE_ADS).freeze
 
     DEFAULT_ADVERTISER = "Unattributed"
 
@@ -173,18 +196,59 @@ module SponsoredLogs
     # only ads eligible at `now` -- live within their flight window and under
     # their impression cap (counts is a text => impressions map). In :cpm mode
     # the cpm drives the odds; if every eligible cpm is 0 we fall back to manual
-    # weights so selection never stalls. A pool with no eligible ads (or whose
-    # eligible weights sum to zero) falls back to the built-in list. Returns nil
-    # only when the pool is truly empty.
+    # weights so selection never stalls.
+    #
+    # Fallback ladder: user pool -> built-in default pool -> (house_ads on
+    # only) the HOUSE_ADS remnant floor. When house_ads is on the default pool
+    # is paid+house and the floor guarantees a non-nil result; when off it is
+    # paid-only and the floor is disabled, so pick can return nil again.
     #
     def self.pick(ads = DEFAULT_ADS, mode: :weight, now: Time.now, counts: {})
-      pool = eligible(normalize(ads), now, counts)
-      pool = eligible(normalize(DEFAULT_ADS), now, counts) if pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
+      pool = drop_house(eligible(normalize(ads), now, counts))
+      pool = drop_house(eligible(normalize(paid_default_pool), now, counts)) if empty_pool?(pool)
+      pool = eligible(normalize(HOUSE_ADS), now, {}) if empty_pool?(pool) && house_ads?
+
+      return if pool.empty?
 
       key = SELECTION_MODES.include?(mode) ? mode : :weight
       key = :weight if key == :cpm && pool.sum { |ad| ad[:cpm] }.zero?
 
       weighted_pick(pool, key)
+    end
+
+    # The built-in fallback pool. Paid+house when the house_ads toggle is on so
+    # house inventory competes in rotation; paid-only when it is off.
+    #
+    def self.paid_default_pool
+      house_ads? ? DEFAULT_ADS : PAID_ADS
+    end
+
+    # Texts that identify house inventory, used to exclude house ads from
+    # selection when the toggle is off (they can arrive via a user-supplied
+    # DEFAULT_ADS pool, not just the fallback).
+    #
+    HOUSE_TEXTS = HOUSE_ADS.map { |ad| ad[:text] }.freeze
+
+    # Strip house creatives from a pool when the house_ads toggle is off; a
+    # no-op when it is on. Keeps house ads out of rotation everywhere, not just
+    # the fallback tier.
+    #
+    def self.drop_house(pool)
+      return pool if house_ads?
+
+      pool.reject { |ad| HOUSE_TEXTS.include?(ad[:text]) }
+    end
+
+    # Whether the self-sponsoring house-ad inventory is enabled. Defaults to on
+    # when no configuration is present (e.g. direct .pick use in isolation).
+    #
+    def self.house_ads?
+      config = SponsoredLogs.configuration
+      config.respond_to?(:house_ads) ? config.house_ads != false : true
+    end
+
+    def self.empty_pool?(pool)
+      pool.empty? || pool.sum { |ad| ad[:weight] }.zero?
     end
 
     def self.eligible(pool, now, counts)
