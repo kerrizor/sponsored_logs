@@ -12,13 +12,15 @@ Gem::Specification.new do |spec|
     Randomly and periodically inserts host-read sponsor messages from the top 10
     podcast advertisers into your application logs. Opt-in and fully configurable.
   DESC
-  spec.homepage = "https://github.com/kerrizor/sponsored_logs"
+  spec.homepage = "https://monetizetheexhaust.dev"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2"
 
-  spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
-  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  source_code_uri = "https://github.com/sponsoredlogs/sponsored_logs"
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = source_code_uri
+  spec.metadata["bug_tracker_uri"] = "#{source_code_uri}/issues"
+  spec.metadata["changelog_uri"] = "#{source_code_uri}/blob/main/CHANGELOG.md"
 
   spec.files = Dir[
     "lib/**/*.rb",
