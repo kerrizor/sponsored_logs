@@ -171,10 +171,11 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `interval`    | `30`       | Seconds between periodic insertions.                           |
 | `output`      | `$stdout`  | Where periodic ads are written.                                |
 | `ad_prefix`   | `"[AD]"`   | Tag prepended to each message; blank omits it.                 |
-| `ads`         | top 10     | The pool of messages to draw from.                             |
+| `ads`         | 13 (paid+house) | The pool of messages to draw from (see House inventory below). |
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
 | `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
 | `ascii_only`  | `false`    | Force portable `+`/`-`/`\|` banner borders (see Premium banner inventory). |
+| `house_ads`   | `true`     | Self-sponsoring remnant fill (see House inventory below).      |
 
 ```
 ╔═ [AD] ════════════════════════════════════════════════════════╗
@@ -339,6 +340,47 @@ creative; the exchange delivers exactly what you traffic.
 
 Both `format` and `box` also travel in the JSON ads file.
 
+## 🏠 House inventory (remnant fill — no impression goes to waste)
+
+In programmatic advertising, unsold inventory doesn't sit dark — the exchange
+backfills it with **house ads**. SponsoredLogs is its own most enthusiastic
+advertiser, so the platform ships three self-sponsoring creatives that both
+compete in the normal rotation **and** serve as the remnant floor. Every log
+line is monetized: if paid demand can't fill the slot, we sell it to ourselves.
+
+House inventory works on two surfaces:
+
+- **In rotation.** The built-in pool is paid demand **plus** house inventory —
+  13 creatives in all (10 paid, 3 house). House ads are ordinary weighted rows
+  (`weight: 1`, `cpm: 0.0`), so roughly 3-in-13 of default-pool impressions
+  self-promote. They bill at zero, so they never dilute your realized spend.
+- **As the remnant floor.** When no paid creative is eligible — the pool is
+  empty, every campaign is capped, out of flight, or zero-weighted — the
+  exchange falls through to the house pool as the final fill. With `house_ads`
+  on, `pick` is guaranteed to return a creative rather than nothing.
+
+```
+[AD] This placement was unsold, so we sold it to ourselves. No impression goes to waste. Every line you log is a line you're leaving on the table.
+```
+
+House inventory is on by default. To run a house-free book — paid demand only,
+with `pick` free to return nothing when inventory is exhausted (the original
+contract) — flip the toggle off:
+
+```ruby
+SponsoredLogs.sponsor!(house_ads: false)
+```
+
+or globally:
+
+```ruby
+SponsoredLogs.configure { |config| config.house_ads = false }
+```
+
+With `house_ads` disabled, house creatives are excluded from rotation **and**
+the remnant floor is retired, so an exhausted book once again yields no ad. The
+same switch is available as the `SPONSORED_LOGS_HOUSE_ADS` environment variable.
+
 ## 💰 Attribution & revenue analytics
 
 You can't manage what you can't measure — and SponsoredLogs delivers
@@ -502,6 +544,7 @@ SPONSORED_LOGS_PERIODIC=true
 SPONSORED_LOGS_PREFIX="SPONSORED:"
 SPONSORED_LOGS_ADS_FILE=config/sponsored_logs.json
 SPONSORED_LOGS_SELECTION=cpm
+SPONSORED_LOGS_HOUSE_ADS=false
 ```
 
 Environment activation and manual activation coexist. Setting the environment
