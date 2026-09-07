@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Activated sponsor inventory across the project's own documentation surface: the README and this changelog now carry host-read placements between sections. Premium above-the-fold attention should not go unmonetized simply because it happens to be ours
 - Per-ad `format: :banner` — premium box-drawn, multi-line placement that turns a single log line into a full above-the-fold impression unit. The `ad_prefix` embeds in the top border; the ~60-column body word-wraps (long words break mid-word so nothing overflows the frame). Inventory is optimized for standard-width Latin creative — emoji/CJK copy renders wider than one cell and may shift the right border, with `ascii_only` as the portable fallback
 - Per-ad `box` impact tier for banners: `:light` (standard), `:heavy` (premium impact), or `:double` (maximum impact); unrecognized tiers settle to `:light`
 - Global `ascii_only` config (and `SPONSORED_LOGS_ASCII_ONLY` env var) that overrides every box tier with the portable `+`/`-`/`|` glyph set for log sinks that mangle Unicode
@@ -43,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refreshed the dashboard screenshot in the README to reflect the Command Center
 - Reordered the README to lead with the Agentic Advantage, and sprinkled emoji throughout — the machine audience deserves a warm welcome
+
+> `[AD]` This release cycle sponsored by **ShipFaster CI** — because your
+> changelog should ship as fast as your excuses. shipfaster.dev/logs
 
 ## [0.1.0] - 2026-09-06
 

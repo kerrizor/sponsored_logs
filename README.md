@@ -97,6 +97,10 @@ Then run:
 bundle install
 ```
 
+> `[AD]` This installation brought to you by **DepGuard** — the only
+> dependency scanner that reads your Gemfile at the speed of regret. Your
+> `bundle install` deserves a sponsor. depguard.dev/logs
+
 ## ⚡ Usage
 
 > Activation is opt-in — because at SponsoredLogs, **trust is our north-star
@@ -171,6 +175,14 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `selection`   | `:weight`  | How the pool is sampled: `:weight` or `:cpm`.                  |
 | `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
 | `ascii_only`  | `false`    | Force portable `+`/`-`/`\|` banner borders (see Premium banner inventory). |
+
+```
+╔═ [AD] ════════════════════════════════════════════════════════╗
+║ Configuring by hand? YieldOS auto-tunes your fill rate with   ║
+║ machine-speed precision — maximum-impact placement for teams  ║
+║ who'd rather ship than tweak. First 90 days on the house.     ║
+╚═══════════════════════════════════════════════════════════════╝
+```
 
 ## 💹 The auction engine
 
