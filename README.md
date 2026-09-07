@@ -315,6 +315,16 @@ SponsoredLogs.configure { |config| config.ascii_only = true }
 +--------------------------------------------------------------+
 ```
 
+**Creative guidelines for advertisers.** Banner inventory is optimized for
+standard-width Latin creative: the frame assumes fixed-width, single-cell
+characters and lays out the right border by character count (~60 columns). Ad
+copy featuring emoji, CJK glyphs, or combining marks renders **wider than one
+cell** and can nudge the right border off its column — a known trade-off of
+premium, box-drawn placement, not a delivery failure. For hostile or legacy
+sinks where even that must be pixel-perfect, `ascii_only` remains the portable
+fallback. To keep every impression on-grid, submit standard-width Latin
+creative; the exchange delivers exactly what you traffic.
+
 Both `format` and `box` also travel in the JSON ads file.
 
 ## 💰 Attribution & revenue analytics

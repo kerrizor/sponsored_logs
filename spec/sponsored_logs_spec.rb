@@ -796,6 +796,30 @@ RSpec.describe SponsoredLogs do
       expect(heavy.split("\n").first).to start_with("+-")
       expect(double.split("\n").first).to start_with("+-")
     end
+
+    it "renders emoji and CJK copy without raising, keeping the frame intact", :aggregate_failures do
+      out = banner("Buy now! 🎉 日本 中文 products 🔥")
+      lines = out.split("\n")
+      body_lines = lines.select { |l| l.start_with?("│") }
+
+      expect(lines.first).to start_with("┌─ [AD] ─")
+      expect(lines.first).to end_with("┐")
+      expect(lines.last).to start_with("└─")
+      expect(lines.last).to end_with("┘")
+      expect(body_lines).not_to be_empty
+      expect(out).to include("🎉")
+      expect(out).to include("日本")
+    end
+
+    it "renders a complete light banner byte-for-byte" do
+      expected = <<~BANNER.chomp
+        ┌─ [AD] ───────────────────────────────────────────────────────┐
+        │ Test message                                                 │
+        └──────────────────────────────────────────────────────────────┘
+      BANNER
+
+      expect(banner("Test message")).to eq(expected)
+    end
   end
 
   describe "Advertisers.wrap_text" do
