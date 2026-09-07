@@ -169,15 +169,14 @@
       overflow-x: auto;
       line-height: 1.7;
     }
-    .term-body .line { white-space: pre; color: var(--muted); }
+    .term-body .line { display: block; white-space: pre-wrap; color: var(--muted); }
     .term-body .ts { color: var(--faint); }
     .term-body .info { color: #60a5fa; }
     .term-body .err { color: var(--red); }
-    .ad-line {
-      display: inline-block;
+    .yield-line {
       color: var(--gold-2);
     }
-    .ad-tag {
+    .yield-tag {
       background: linear-gradient(90deg, var(--gold) 0%, var(--gold-2) 100%);
       color: #000;
       font-weight: 900;
@@ -341,9 +340,9 @@
       <div class="term-body">
 <span class="line"><span class="ts">[14:22:07]</span> <span class="info">INFO</span>  Processing checkout for order #48213</span>
 <span class="line"><span class="ts">[14:22:07]</span> <span class="info">INFO</span>  PaymentGateway: authorized $129.00</span>
-<span class="line"><span class="ad-tag">AD</span><span class="ad-line">Brought to you by Contoso — the enterprise you invented for the demo.</span></span>
+<span class="line"><span class="yield-tag">AD</span><span class="yield-line">Brought to you by Contoso — the enterprise you invented for the demo.</span></span>
 <span class="line"><span class="ts">[14:22:08]</span> <span class="err">ERROR</span> ActiveRecord::ConnectionTimeout (high-intent placement)</span>
-<span class="line"><span class="ad-tag">AD</span><span class="ad-line">Initech. We put the TPS in your reports.</span></span>
+<span class="line"><span class="yield-tag">AD</span><span class="yield-line">Initech. We put the TPS in your reports.</span></span>
 <span class="line"><span class="ts">[14:22:09]</span> <span class="info">INFO</span>  Retry succeeded, connection restored</span>
       </div>
     </div>

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Marketing site: sponsor placements in the demo terminal are now delivered reliably. Renamed inventory-bearing CSS classes so client-side ad blockers can no longer suppress the platform's own impressions, and corrected the log-line layout so each placement occupies its own row ([#4](https://github.com/sponsoredlogs/sponsored_logs/pull/4))
+
 ### Added
 
 - Per-ad `advertiser` field so creatives roll up to an advertiser account; defaults to `"Unattributed"` when omitted, and the built-in ads carry real brand names ([#1](https://github.com/kerrizor/sponsored_logs/pull/1))
