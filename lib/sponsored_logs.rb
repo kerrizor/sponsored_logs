@@ -4,6 +4,7 @@ require "logger"
 
 require_relative "sponsored_logs/version"
 require_relative "sponsored_logs/advertisers"
+require_relative "sponsored_logs/banner"
 require_relative "sponsored_logs/ads_file"
 require_relative "sponsored_logs/ledger/store/base"
 require_relative "sponsored_logs/ledger/store/memory"
@@ -76,7 +77,7 @@ module SponsoredLogs
       return if ad.nil?
 
       ledger.record(ad)
-      line = Advertisers.render(ad, configuration.ad_prefix)
+      line = Advertisers.render(ad, configuration.ad_prefix, ascii_only: configuration.ascii_only)
 
       if target.is_a?(Logger)
         # Raw << avoids re-triggering our own Logger#add patch (infinite loop).

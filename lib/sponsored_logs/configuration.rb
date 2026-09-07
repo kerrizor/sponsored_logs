@@ -2,12 +2,13 @@
 
 module SponsoredLogs
   class Configuration
-    attr_accessor :probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store, :report_page
+    attr_accessor :probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store, :report_page,
+                  :ascii_only
 
     # Settings that map 1:1 onto an accessor. ads/ads_file are handled
     # separately because they interact (ads wins; ads_file loads into ads).
     #
-    DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store report_page].freeze
+    DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store report_page ascii_only].freeze
     KNOWN_KEYS = (DIRECT_KEYS + %i[ads ads_file]).freeze
 
     def initialize
@@ -20,6 +21,7 @@ module SponsoredLogs
       @selection = :weight
       @store = Ledger::Store::Memory.new
       @report_page = false
+      @ascii_only = false
     end
 
     # Apply a hash of settings. Symbol or string keys are accepted; unknown
