@@ -613,4 +613,262 @@ RSpec.describe SponsoredLogs do
       expect(picked[:text]).to eq("capped")
     end
   end
+
+  describe "Advertisers ad-format coercion" do
+    describe ".coerce_format" do
+      it "keeps :text and :banner", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_format(:text)).to eq(:text)
+        expect(SponsoredLogs::Advertisers.coerce_format(:banner)).to eq(:banner)
+      end
+
+      it "coerces strings to symbols when recognized", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_format("banner")).to eq(:banner)
+        expect(SponsoredLogs::Advertisers.coerce_format("text")).to eq(:text)
+      end
+
+      it "defaults nil and garbage to :text", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_format(nil)).to eq(:text)
+        expect(SponsoredLogs::Advertisers.coerce_format(:bogus)).to eq(:text)
+        expect(SponsoredLogs::Advertisers.coerce_format(123)).to eq(:text)
+      end
+    end
+
+    describe ".coerce_box" do
+      it "keeps :light, :heavy, and :double", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_box(:light)).to eq(:light)
+        expect(SponsoredLogs::Advertisers.coerce_box(:heavy)).to eq(:heavy)
+        expect(SponsoredLogs::Advertisers.coerce_box(:double)).to eq(:double)
+      end
+
+      it "coerces recognized strings to symbols" do
+        expect(SponsoredLogs::Advertisers.coerce_box("double")).to eq(:double)
+      end
+
+      it "defaults nil and garbage to :light", :aggregate_failures do
+        expect(SponsoredLogs::Advertisers.coerce_box(nil)).to eq(:light)
+        expect(SponsoredLogs::Advertisers.coerce_box("nope")).to eq(:light)
+        expect(SponsoredLogs::Advertisers.coerce_box(:fancy)).to eq(:light)
+      end
+    end
+
+    describe ".normalize_entry" do
+      it "defaults format to :text and box to :light", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize([{ text: "x" }]).first
+        expect(ad[:format]).to eq(:text)
+        expect(ad[:box]).to eq(:light)
+      end
+
+      it "keeps a valid format and box", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize([{ text: "x", format: :banner, box: :heavy }]).first
+        expect(ad[:format]).to eq(:banner)
+        expect(ad[:box]).to eq(:heavy)
+      end
+
+      it "coerces an invalid format and box back to defaults", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize([{ text: "x", format: :nope, box: 7 }]).first
+        expect(ad[:format]).to eq(:text)
+        expect(ad[:box]).to eq(:light)
+      end
+    end
+  end
+
+  describe "Advertisers.render :text format (backward compatibility)" do
+    it "renders a text-format ad byte-identical to the current tagged line" do
+      ad = { text: "Only ad in the pool", format: :text, box: :light }
+      expect(SponsoredLogs::Advertisers.render(ad, "[AD]")).to eq("[AD] Only ad in the pool")
+    end
+
+    it "renders byte-identical when format is absent (implicit text)" do
+      ad = { text: "Only ad in the pool" }
+      expect(SponsoredLogs::Advertisers.render(ad, "[AD]")).to eq("[AD] Only ad in the pool")
+    end
+
+    it "renders byte-identical with a blank prefix (no tag)" do
+      ad = { text: "Only ad in the pool", format: :text }
+      expect(SponsoredLogs::Advertisers.render(ad, "")).to eq("Only ad in the pool")
+    end
+
+    it "honors a custom prefix unchanged" do
+      ad = { text: "Buy now", format: :text }
+      expect(SponsoredLogs::Advertisers.render(ad, "SPONSORED:")).to eq("SPONSORED: Buy now")
+    end
+
+    it "returns nil for a nil entry" do
+      expect(SponsoredLogs::Advertisers.render(nil, "[AD]")).to be_nil
+    end
+  end
+
+  describe "Advertisers.render :banner format" do
+    def banner(text, prefix: "[AD]", box: :light, ascii_only: false)
+      ad = { text: text, format: :banner, box: box }
+      SponsoredLogs::Advertisers.render(ad, prefix, ascii_only: ascii_only)
+    end
+
+    it "renders a light box by default with the prefix in the top border", :aggregate_failures do
+      out = banner("Hello there")
+      lines = out.split("\n")
+
+      expect(lines.first).to start_with("┌─ [AD] ─")
+      expect(lines.first).to end_with("┐")
+      expect(lines.last).to start_with("└─")
+      expect(lines.last).to end_with("┘")
+      expect(out).to include("│ Hello there")
+    end
+
+    it "aligns every line to the same visual width", :aggregate_failures do
+      lines = banner("A short line").split("\n")
+      widths = lines.map(&:length).uniq
+
+      expect(widths.length).to eq(1)
+    end
+
+    it "pads a short body line with trailing spaces before the right border" do
+      body = banner("Hi").split("\n").find { |l| l.start_with?("│") }
+      expect(body).to match(/│ Hi\s+ │/)
+    end
+
+    it "word-wraps a long body onto multiple lines", :aggregate_failures do
+      text = "word " * 40
+      body_lines = banner(text.strip).split("\n").select { |l| l.start_with?("│") }
+
+      expect(body_lines.length).to be > 1
+      body_lines.each { |l| expect(l.length).to eq(body_lines.first.length) }
+    end
+
+    it "breaks a single word longer than the width mid-word" do
+      long = "x" * 80
+      body_lines = banner(long).split("\n").select { |l| l.start_with?("│") }
+      expect(body_lines.length).to be >= 2
+    end
+
+    it "renders a heavy box with heavy glyphs", :aggregate_failures do
+      out = banner("Premium impact", box: :heavy)
+      lines = out.split("\n")
+
+      expect(lines.first).to start_with("┏━ [AD] ━")
+      expect(lines.first).to end_with("┓")
+      expect(out).to include("┃ Premium impact")
+      expect(lines.last).to start_with("┗━")
+      expect(lines.last).to end_with("┛")
+    end
+
+    it "renders a double box with double glyphs", :aggregate_failures do
+      out = banner("Maximum impact", box: :double)
+      lines = out.split("\n")
+
+      expect(lines.first).to start_with("╔═ [AD] ═")
+      expect(lines.first).to end_with("╗")
+      expect(out).to include("║ Maximum impact")
+      expect(lines.last).to start_with("╚═")
+      expect(lines.last).to end_with("╝")
+    end
+
+    it "embeds a custom prefix in the top border" do
+      out = banner("Copy", prefix: "SPONSORED:")
+      expect(out.split("\n").first).to start_with("┌─ SPONSORED: ─")
+    end
+
+    it "omits the prefix tag and its gap when the prefix is blank", :aggregate_failures do
+      top = banner("Copy", prefix: "").split("\n").first
+
+      expect(top).to start_with("┌──")
+      expect(top).not_to include("[AD]")
+      expect(top).not_to include(" ")
+    end
+
+    it "overrides a light box with ASCII borders when ascii_only is true", :aggregate_failures do
+      out = banner("Copy", box: :light, ascii_only: true)
+      lines = out.split("\n")
+
+      expect(lines.first).to start_with("+- [AD] -")
+      expect(lines.first).to end_with("+")
+      expect(out).to include("| Copy")
+      expect(lines.last).to start_with("+-")
+      expect(lines.last).to end_with("+")
+    end
+
+    it "overrides heavy and double boxes with ASCII when ascii_only is true", :aggregate_failures do
+      heavy = banner("Copy", box: :heavy, ascii_only: true)
+      double = banner("Copy", box: :double, ascii_only: true)
+
+      expect(heavy).not_to match(/[┏┓┗┛━┃]/)
+      expect(double).not_to match(/[╔╗╚╝═║]/)
+      expect(heavy.split("\n").first).to start_with("+-")
+      expect(double.split("\n").first).to start_with("+-")
+    end
+  end
+
+  describe "Advertisers.wrap_text" do
+    it "wraps on word boundaries within the width", :aggregate_failures do
+      lines = SponsoredLogs::Advertisers.wrap_text("one two three four", 8)
+
+      lines.each { |l| expect(l.length).to be <= 8 }
+      expect(lines.join(" ")).to eq("one two three four")
+    end
+
+    it "breaks a word longer than the width mid-word", :aggregate_failures do
+      lines = SponsoredLogs::Advertisers.wrap_text("abcdefghij", 4)
+
+      expect(lines).to eq(%w[abcd efgh ij])
+    end
+
+    it "returns a single blank line for empty text" do
+      expect(SponsoredLogs::Advertisers.wrap_text("", 10)).to eq([""])
+    end
+  end
+
+  describe "configuration ascii_only" do
+    it "defaults ascii_only to false" do
+      expect(described_class.configuration.ascii_only).to be(false)
+    end
+
+    it "accepts ascii_only via sponsor!" do
+      described_class.sponsor!(ascii_only: true)
+      expect(described_class.configuration.ascii_only).to be(true)
+    ensure
+      described_class.configuration.ascii_only = false
+    end
+
+    it "loads ascii_only from ENV as truthy" do
+      opts = SponsoredLogs::Env.options({ "SPONSORED_LOGS_ASCII_ONLY" => "1" })
+      expect(opts[:ascii_only]).to be(true)
+    end
+
+    it "leaves ascii_only out of ENV options when unset" do
+      expect(SponsoredLogs::Env.options({})).not_to have_key(:ascii_only)
+    end
+  end
+
+  describe ".emit with banner ads" do
+    it "emits a multi-line banner to an IO target", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Banner ad", format: :banner, weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string).to include("\n")
+      expect(io.string).to start_with("┌─ [AD] ─")
+      expect(io.string).to include("│ Banner ad")
+    end
+
+    it "emits a multi-line banner to a Logger target" do
+      buffer = StringIO.new
+      logger = Logger.new(buffer)
+      logger.formatter = ->(_s, _t, _p, msg) { "#{msg}\n" }
+      described_class.sponsor!(ads: [{ text: "Logger banner", format: :banner, weight: 1 }])
+      described_class.emit(logger)
+
+      expect(buffer.string).to include("│ Logger banner")
+    end
+
+    it "respects ascii_only config when emitting a banner", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Ascii banner", format: :banner, weight: 1 }], ascii_only: true)
+      described_class.emit(io)
+
+      expect(io.string).to start_with("+- [AD] -")
+      expect(io.string).to include("| Ascii banner")
+    ensure
+      described_class.configuration.ascii_only = false
+    end
+  end
 end

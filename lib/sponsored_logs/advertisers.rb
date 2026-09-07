@@ -56,8 +56,29 @@ module SponsoredLogs
         cpm: coerce_number(fetch(entry, :cpm), default: 0.0),
         starts_at: coerce_time(fetch(entry, :starts_at)),
         ends_at: coerce_time(fetch(entry, :ends_at)),
-        cap: coerce_cap(fetch(entry, :cap))
+        cap: coerce_cap(fetch(entry, :cap)),
+        format: coerce_format(fetch(entry, :format)),
+        box: coerce_box(fetch(entry, :box))
       }
+    end
+
+    # Creative format an advertiser buys: :text (classic one-liner) or :banner
+    # (premium box-drawn inventory). Unrecognized buys fill as :text.
+    #
+    FORMATS = %i[text banner].freeze
+
+    # Impact tier of a :banner buy, priced by border weight. Unknown -> :light.
+    #
+    BOX_STYLES = %i[light heavy double].freeze
+
+    def self.coerce_format(value)
+      symbol = value.to_s.strip.downcase.to_sym
+      FORMATS.include?(symbol) ? symbol : :text
+    end
+
+    def self.coerce_box(value)
+      symbol = value.to_s.strip.downcase.to_sym
+      BOX_STYLES.include?(symbol) ? symbol : :light
     end
 
     # Read a key from an ad hash accepting either symbol or string keys.
@@ -170,11 +191,23 @@ module SponsoredLogs
       pool.select { |ad| eligible?(ad, now, counts[ad[:text]].to_i) }
     end
 
-    def self.render(entry, prefix = "[AD]")
+    # Render a normalized ad. :text ads (the default) stay byte-identical to
+    # the classic tagged line; :banner ads draw a word-wrapped box (see
+    # Banner) with the prefix embedded in the top border.
+    #
+    def self.render(entry, prefix = "[AD]", ascii_only: false)
       return if entry.nil?
 
       prefix = prefix.to_s.strip
+      return Banner.render(entry, prefix, ascii_only) if entry[:format] == :banner
+
       prefix.empty? ? entry[:text] : "#{prefix} #{entry[:text]}"
+    end
+
+    # Delegated to Banner so the wrapper is testable in isolation.
+    #
+    def self.wrap_text(text, width)
+      Banner.wrap_text(text, width)
     end
 
     def self.weighted_pick(pool, key)
