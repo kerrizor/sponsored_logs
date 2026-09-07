@@ -51,21 +51,26 @@ RSpec.describe "SponsoredLogs::Engine", type: :request do
     expect(last_response.body).to include("$2.00") # 100/1000 * 20
   end
 
-  it "renders inline SVG bar charts", :aggregate_failures do
-    get "/sponsored_logs_report"
-
-    expect(last_response.body).to include("Spend by advertiser")
-    expect(last_response.body).to include("Impressions by advertiser")
-    expect(last_response.body).to include("<svg")
-    expect(last_response.body).to include('class="bar-fill"')
-  end
-
-  it "renders the share-of-spend donut", :aggregate_failures do
+  it "renders share-of-spend and share-of-impressions donuts", :aggregate_failures do
     get "/sponsored_logs_report"
 
     expect(last_response.body).to include("Share of spend")
+    expect(last_response.body).to include("Share of impressions")
     expect(last_response.body).to include('class="donut"')
     expect(last_response.body).to include('class="legend"')
+    expect(last_response.body).to include("<svg")
+  end
+
+  it "renders the advertiser accounts rollup", :aggregate_failures do
+    SponsoredLogs.configuration.ads = [{ advertiser: "Contoso", text: "DashAd", weight: 1, cpm: 20.0 }]
+    SponsoredLogs.reset_ledger!
+    100.times { SponsoredLogs.configuration.store.record(text: "DashAd", weight: 1, cpm: 20.0) }
+
+    get "/sponsored_logs_report"
+
+    expect(last_response.body).to include("Advertiser accounts")
+    expect(last_response.body).to include("Contoso")
+    expect(last_response.body).to include('class="advertiser"')
   end
 
   it "renders delivery-to-goal bars for capped ads", :aggregate_failures do

@@ -5,46 +5,72 @@ require "time"
 module SponsoredLogs
   module Advertisers
     DEFAULT_ADS = [
-      { text: "This log line brought to you by Shopify. Start selling in the time it took to raise that exception.", weight: 1, cpm: 22.0 },
-      { text: "Mint Mobile: premium wireless for the price of one deprecated dependency. Go to mintmobile.com/logs.", weight: 1,
-        cpm: 18.0 },
-      { text: "Quince: luxury log output at radically low overhead. Free returns on any stack trace.", weight: 1, cpm: 16.0 },
-      { text: "Feeling stressed about that stack trace? BetterHelp connects you with a licensed therapist. First segfault 10% off.",
-        weight: 1, cpm: 25.0 },
-      { text: "Wayfair has just what your codebase needs. Got a memory leak? Wayfair's got a couch for that.", weight: 1, cpm: 14.0 },
-      { text: "Amazon: everything you need to ship, delivered before your test suite finishes.", weight: 1, cpm: 20.0 },
-      { text: "Like a good neighbor, State Farm is there -- unlike your on-call engineer at 3am.", weight: 1, cpm: 12.0 },
-      { text: "Ba da ba ba ba, I'm loggin' it. McDonald's.", weight: 1, cpm: 15.0 },
-      { text: "Squarespace: build a beautiful website faster than this build compiles. Use code STDOUT.", weight: 1, cpm: 17.0 },
-      { text: "Let's go places. Toyota. (Preferably away from this NullPointerException.)", weight: 1, cpm: 13.0 }
+      { advertiser: "Shopify", text: "This log line brought to you by Shopify. Start selling in the time it took to raise that exception.",
+        weight: 1, cpm: 22.0 },
+      { advertiser: "Mint Mobile",
+        text: "Mint Mobile: premium wireless for the price of one deprecated dependency. Go to mintmobile.com/logs.", weight: 1, cpm: 18.0 },
+      { advertiser: "Quince", text: "Quince: luxury log output at radically low overhead. Free returns on any stack trace.", weight: 1,
+        cpm: 16.0 },
+      { advertiser: "BetterHelp",
+        text: "Feeling stressed about that stack trace? BetterHelp connects you with a licensed therapist. First segfault 10% off.", weight: 1, cpm: 25.0 },
+      { advertiser: "Wayfair", text: "Wayfair has just what your codebase needs. Got a memory leak? Wayfair's got a couch for that.",
+        weight: 1, cpm: 14.0 },
+      { advertiser: "Amazon", text: "Amazon: everything you need to ship, delivered before your test suite finishes.", weight: 1,
+        cpm: 20.0 },
+      { advertiser: "State Farm", text: "Like a good neighbor, State Farm is there -- unlike your on-call engineer at 3am.", weight: 1,
+        cpm: 12.0 },
+      { advertiser: "McDonald's", text: "Ba da ba ba ba, I'm loggin' it. McDonald's.", weight: 1, cpm: 15.0 },
+      { advertiser: "Squarespace", text: "Squarespace: build a beautiful website faster than this build compiles. Use code STDOUT.",
+        weight: 1, cpm: 17.0 },
+      { advertiser: "Toyota", text: "Let's go places. Toyota. (Preferably away from this NullPointerException.)", weight: 1, cpm: 13.0 }
     ].freeze
+
+    DEFAULT_ADVERTISER = "Unattributed"
 
     SELECTION_MODES = %i[weight cpm].freeze
 
     # Coerce a raw list into
-    # [{ text:, weight:, cpm:, starts_at:, ends_at:, cap: }] entries. Accepts
-    # symbol- or string-keyed hashes; drops entries with blank text. Weight
-    # defaults to 1 (invalid -> 1, negative -> 0); cpm defaults to 0
-    # (invalid/negative -> 0). starts_at/ends_at are optional flight bounds
-    # (nil = unbounded). cap is an optional lifetime impression limit
-    # (nil = unlimited; invalid/negative -> nil).
+    # [{ advertiser:, text:, weight:, cpm:, starts_at:, ends_at:, cap: }]
+    # entries. Accepts symbol- or string-keyed hashes; drops entries with blank
+    # text. advertiser defaults to "Unattributed". Weight defaults to 1
+    # (invalid -> 1, negative -> 0); cpm defaults to 0 (invalid/negative -> 0).
+    # starts_at/ends_at are optional flight bounds (nil = unbounded). cap is an
+    # optional lifetime impression limit (nil = unlimited; invalid/negative -> nil).
     #
     def self.normalize(ads)
       Array(ads).filter_map do |entry|
-        next unless entry.is_a?(Hash)
-
-        text = (entry[:text] || entry["text"]).to_s.strip
-        next if text.empty?
-
-        {
-          text: text,
-          weight: coerce_number(entry[:weight] || entry["weight"], default: 1.0),
-          cpm: coerce_number(entry[:cpm] || entry["cpm"], default: 0.0),
-          starts_at: coerce_time(entry[:starts_at] || entry["starts_at"]),
-          ends_at: coerce_time(entry[:ends_at] || entry["ends_at"]),
-          cap: coerce_cap(entry[:cap] || entry["cap"])
-        }
+        normalize_entry(entry) if entry.is_a?(Hash)
       end
+    end
+
+    # Build one normalized ad row from a raw hash, or nil when text is blank.
+    #
+    def self.normalize_entry(entry)
+      text = fetch(entry, :text).to_s.strip
+      return if text.empty?
+
+      {
+        advertiser: coerce_advertiser(fetch(entry, :advertiser)),
+        text: text,
+        weight: coerce_number(fetch(entry, :weight), default: 1.0),
+        cpm: coerce_number(fetch(entry, :cpm), default: 0.0),
+        starts_at: coerce_time(fetch(entry, :starts_at)),
+        ends_at: coerce_time(fetch(entry, :ends_at)),
+        cap: coerce_cap(fetch(entry, :cap))
+      }
+    end
+
+    # Read a key from an ad hash accepting either symbol or string keys.
+    #
+    def self.fetch(entry, key)
+      entry[key] || entry[key.to_s]
+    end
+
+    # Normalize an advertiser name; blank/nil falls back to "Unattributed".
+    #
+    def self.coerce_advertiser(value)
+      name = value.to_s.strip
+      name.empty? ? DEFAULT_ADVERTISER : name
     end
 
     # Parse an impression cap into a positive Integer, or nil (unlimited) when
