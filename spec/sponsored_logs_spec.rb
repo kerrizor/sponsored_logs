@@ -647,6 +647,87 @@ RSpec.describe SponsoredLogs do
       expect(results & house_texts).not_to be_empty
     end
 
+    it "rotates house ads roughly in proportion to weight (~3/13)", :aggregate_failures do
+      # All 13 default entries are eligible and equally weighted, so house
+      # creatives (3 of 13, ~23%) should appear near their share over a large
+      # sample. Wide band keeps this non-flaky, matching the weight specs above.
+      #
+      described_class.sponsor!(house_ads: true)
+
+      sample = 6500
+      results = Array.new(sample) do
+        SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(now: now), "")
+      end
+      house_count = (results & house_texts).sum { |text| results.count(text) }
+
+      # Expected ~1500 (3/13). Assert a generous 12%-34% band.
+      #
+      expect(house_count).to be > (sample * 0.12)
+      expect(house_count).to be < (sample * 0.34)
+    end
+
+    describe "rotation vs remnant floor (distinct code paths)" do
+      before { described_class.sponsor!(house_ads: true) }
+
+      it "picks a house creative from normal rotation without touching the floor", :aggregate_failures do
+        # A fully-eligible pool holding a paid ad AND a house ad. Because the
+        # pool is non-empty with eligible paid demand, the remnant floor (which
+        # would rebuild the pool from HOUSE_ADS) is never reached -- yet a house
+        # creative is still selectable because it competes in rotation.
+        #
+        paid = { advertiser: "Shopify", text: "paid demand", weight: 1, cpm: 22.0 }
+        house = SponsoredLogs::Advertisers::HOUSE_ADS.first
+        pool = [paid, house]
+
+        # Seed the weighted pick to land on the house creative deterministically.
+        #
+        allow(SponsoredLogs::Advertisers).to receive(:weighted_pick) do |candidates, _key|
+          candidates.find { |ad| house_texts.include?(ad[:text]) }
+        end
+
+        # If the floor were reached it would rebuild from HOUSE_ADS alone; assert
+        # it is not by proving the fallback/floor tiers are never consulted.
+        #
+        expect(SponsoredLogs::Advertisers).not_to receive(:paid_default_pool)
+
+        picked = SponsoredLogs::Advertisers.pick(pool, now: now)
+        expect(picked).not_to be_nil
+        expect(house_texts).to include(picked[:text])
+        expect(picked[:advertiser]).to eq("SponsoredLogs")
+      end
+
+      it "serves a house ad from the remnant floor when both prior tiers are exhausted", :aggregate_failures do
+        # Contrast with the rotation path: here the user pool AND the paid
+        # default pool both yield nothing eligible (out of flight / capped), so
+        # the pick can ONLY come from the HOUSE_ADS floor (advertisers.rb line
+        # guarded by `empty_pool?(pool) && house_ads?`).
+        #
+        expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
+        allow(SponsoredLogs::Advertisers)
+          .to receive(:paid_default_pool)
+          .and_return([{ text: "capped", weight: 1, cap: 1 }])
+
+        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+        expect(picked).not_to be_nil
+        expect(house_texts).to include(picked[:text])
+        expect(picked[:advertiser]).to eq("SponsoredLogs")
+      end
+    end
+
+    it "leaves the earlier tiers untouched when house_ads is on (drop_house is a no-op)", :aggregate_failures do
+      described_class.sponsor!(house_ads: true)
+
+      # With the toggle on, drop_house must not strip house creatives from any
+      # pool it filters -- turning the toggle on/off is the only lever that adds
+      # or removes house ads from the selectable set.
+      #
+      normalized = SponsoredLogs::Advertisers.normalize(SponsoredLogs::Advertisers::DEFAULT_ADS)
+      filtered = SponsoredLogs::Advertisers.drop_house(normalized)
+
+      expect(filtered).to eq(normalized)
+      expect(filtered.map { |ad| ad[:text] } & house_texts).to match_array(house_texts)
+    end
+
     context "remnant floor (house_ads on)" do
       before { described_class.sponsor!(house_ads: true) }
 
@@ -749,6 +830,28 @@ RSpec.describe SponsoredLogs do
     it "loads house_ads from ENV as truthy", :aggregate_failures do
       expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => "1" })[:house_ads]).to be(true)
       expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => "0" })[:house_ads]).to be(false)
+    end
+
+    it "treats the documented truthy set as enabled, case-insensitively", :aggregate_failures do
+      # Mirror Env::TRUTHY (%w[1 true yes on]); parsing lowercases and strips, so
+      # mixed case and surrounding whitespace still enable.
+      #
+      %w[1 true yes on TRUE Yes ON].each do |raw|
+        opts = SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => raw })
+        expect(opts[:house_ads]).to be(true), "expected #{raw.inspect} to enable house_ads"
+      end
+
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => "  On  " })[:house_ads]).to be(true)
+    end
+
+    it "treats any non-truthy value as disabled", :aggregate_failures do
+      # Anything outside the truthy set present in the environment coerces to
+      # false (an explicit override), matching every other boolean env var.
+      #
+      ["0", "false", "no", "off", "", "nope", "2"].each do |raw|
+        opts = SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => raw })
+        expect(opts[:house_ads]).to be(false), "expected #{raw.inspect} to disable house_ads"
+      end
     end
 
     it "leaves house_ads out of ENV options when unset" do
