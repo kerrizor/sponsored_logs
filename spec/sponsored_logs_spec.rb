@@ -164,8 +164,9 @@ RSpec.describe SponsoredLogs do
       expect(described_class.configuration.ad_prefix).to eq("[AD]")
     end
 
-    it "defaults ads to the built-in list" do
+    it "defaults ads to the built-in paid-plus-house list", :aggregate_failures do
       expect(described_class.configuration.ads).to eq(SponsoredLogs::Advertisers::DEFAULT_ADS)
+      expect(described_class.configuration.ads.length).to eq(13)
     end
 
     it "defaults selection to :weight" do
@@ -339,8 +340,18 @@ RSpec.describe SponsoredLogs do
   end
 
   describe "Advertisers" do
-    it "provides exactly ten built-in ads" do
-      expect(SponsoredLogs::Advertisers::DEFAULT_ADS.length).to eq(10)
+    it "provides exactly ten paid built-in ads" do
+      expect(SponsoredLogs::Advertisers::PAID_ADS.length).to eq(10)
+    end
+
+    it "provides exactly three house ads" do
+      expect(SponsoredLogs::Advertisers::HOUSE_ADS.length).to eq(3)
+    end
+
+    it "composes the default pool from paid plus house inventory", :aggregate_failures do
+      expect(SponsoredLogs::Advertisers::DEFAULT_ADS.length).to eq(13)
+      expect(SponsoredLogs::Advertisers::DEFAULT_ADS)
+        .to eq(SponsoredLogs::Advertisers::PAID_ADS + SponsoredLogs::Advertisers::HOUSE_ADS)
     end
 
     def render(ads = nil, prefix: "[AD]", mode: :weight)
@@ -611,6 +622,137 @@ RSpec.describe SponsoredLogs do
       ads = [{ text: "capped", weight: 1, cap: 10 }]
       picked = SponsoredLogs::Advertisers.pick(ads, now: now, counts: { "capped" => 9 })
       expect(picked[:text]).to eq("capped")
+    end
+  end
+
+  describe "house ads" do
+    let(:now) { Time.utc(2026, 6, 15, 12, 0, 0) }
+
+    def house_texts
+      SponsoredLogs::Advertisers::HOUSE_ADS.map { |ad| ad[:text] }
+    end
+
+    it "brands every house creative as SponsoredLogs with zero cpm", :aggregate_failures do
+      SponsoredLogs::Advertisers::HOUSE_ADS.each do |ad|
+        expect(ad[:advertiser]).to eq("SponsoredLogs")
+        expect(ad[:cpm]).to eq(0.0)
+        expect(ad[:weight]).to eq(1)
+      end
+    end
+
+    it "can serve a house ad from the default rotation" do
+      results = Array.new(2000) do
+        SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(now: now), "")
+      end
+      expect(results & house_texts).not_to be_empty
+    end
+
+    context "remnant floor (house_ads on)" do
+      before { described_class.sponsor!(house_ads: true) }
+
+      it "serves a house ad when the user pool is empty" do
+        picked = SponsoredLogs::Advertisers.pick([], now: now)
+        # An empty user pool falls back to DEFAULT_ADS, which already contains
+        # house inventory; the pick must still resolve to a real creative.
+        #
+        expect(picked).not_to be_nil
+      end
+
+      it "serves a house ad when nothing paid is eligible", :aggregate_failures do
+        # Force both the user pool and the paid default pool to be ineligible so
+        # only the HOUSE_ADS remnant floor can answer.
+        #
+        expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
+        allow(SponsoredLogs::Advertisers)
+          .to receive(:paid_default_pool)
+          .and_return([{ text: "capped", weight: 1, cap: 1 }])
+
+        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+        expect(picked).not_to be_nil
+        expect(picked[:advertiser]).to eq("SponsoredLogs")
+      end
+
+      it "guarantees pick never returns nil when everything is out of flight" do
+        expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
+        picked = SponsoredLogs::Advertisers.pick(expired, now: now)
+        expect(picked).not_to be_nil
+      end
+    end
+
+    context "toggle off (house_ads: false)" do
+      before { described_class.sponsor!(house_ads: false) }
+
+      it "excludes house ads from the default rotation" do
+        results = Array.new(2000) do
+          SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(now: now), "")
+        end
+        expect(results & house_texts).to be_empty
+      end
+
+      it "returns nil when no paid ad is eligible" do
+        # User pool and paid default pool both ineligible; with the floor off,
+        # pick must fall through to nil (original contract).
+        #
+        expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
+        allow(SponsoredLogs::Advertisers)
+          .to receive(:paid_default_pool)
+          .and_return([{ text: "capped", weight: 1, cap: 1 }])
+
+        expect(
+          SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+        ).to be_nil
+      end
+
+      it "still returns nil for an out-of-flight user pool" do
+        expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
+        counts = { "expired" => 0 }
+        # Every PAID default is also forced ineligible so only the floor could save it.
+        #
+        paid_counts = SponsoredLogs::Advertisers::PAID_ADS.to_h { |ad| [ad[:text], 1_000_000] }
+        capped_pool = SponsoredLogs::Advertisers::PAID_ADS.map { |ad| ad.merge(cap: 1) }
+        allow(SponsoredLogs::Advertisers).to receive(:paid_default_pool).and_return(capped_pool)
+
+        expect(
+          SponsoredLogs::Advertisers.pick(expired, now: now, counts: counts.merge(paid_counts))
+        ).to be_nil
+      end
+    end
+
+    it "records a served house ad in the ledger with zero spend", :aggregate_failures do
+      described_class.reset_ledger!
+      described_class.sponsor!(ads: SponsoredLogs::Advertisers::HOUSE_ADS, house_ads: true)
+
+      1000.times { described_class.emit(StringIO.new) }
+      report = described_class.report
+      account = report[:advertisers].find { |a| a[:advertiser] == "SponsoredLogs" }
+
+      expect(report[:impressions]).to eq(1000)
+      expect(report[:spend]).to eq(0.0)
+      expect(account).not_to be_nil
+      expect(account[:spend]).to eq(0.0)
+      expect(account[:impressions]).to eq(1000)
+    end
+  end
+
+  describe "configuration house_ads" do
+    it "defaults house_ads to true" do
+      expect(described_class.configuration.house_ads).to be(true)
+    end
+
+    it "accepts house_ads via sponsor!" do
+      described_class.sponsor!(house_ads: false)
+      expect(described_class.configuration.house_ads).to be(false)
+    ensure
+      described_class.configuration.house_ads = true
+    end
+
+    it "loads house_ads from ENV as truthy", :aggregate_failures do
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => "1" })[:house_ads]).to be(true)
+      expect(SponsoredLogs::Env.options({ "SPONSORED_LOGS_HOUSE_ADS" => "0" })[:house_ads]).to be(false)
+    end
+
+    it "leaves house_ads out of ENV options when unset" do
+      expect(SponsoredLogs::Env.options({})).not_to have_key(:house_ads)
     end
   end
 
