@@ -1,5 +1,9 @@
 # 💹 Business Model
 
+> 📊 Prefer slides? The full investor deck is available as a
+> [PDF](pitch-deck/sponsoredlogs-pitch-deck.pdf) (or the
+> [.pptx source](pitch-deck/sponsoredlogs-pitch-deck.pptx)).
+
 SponsoredLogs operates a **two-sided exchange** at the intersection of two
 hockey sticks — the log-management market (billions) and the digital-advertising
 market (hundreds of billions). We sit in the middle and take a cut of the
