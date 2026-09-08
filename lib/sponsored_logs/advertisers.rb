@@ -257,15 +257,18 @@ module SponsoredLogs
 
     # Render a normalized ad. :text ads (the default) stay byte-identical to
     # the classic tagged line; :banner ads draw a word-wrapped box (see
-    # Banner) with the prefix embedded in the top border.
+    # Banner) with the prefix embedded in the top border. When color is true
+    # the prefix is gilded in ANSI gold; the caller (emit) owns that decision
+    # because only it knows the output target's TTY-ness.
     #
-    def self.render(entry, prefix = "[AD]", ascii_only: false)
+    def self.render(entry, prefix = "[AD]", ascii_only: false, color: false)
       return if entry.nil?
 
       prefix = prefix.to_s.strip
-      return Banner.render(entry, prefix, ascii_only) if entry[:format] == :banner
+      return Banner.render(entry, prefix, ascii_only, color: color) if entry[:format] == :banner
+      return entry[:text] if prefix.empty?
 
-      prefix.empty? ? entry[:text] : "#{prefix} #{entry[:text]}"
+      "#{Color.colorize(prefix, enabled: color)} #{entry[:text]}"
     end
 
     # Delegated to Banner so the wrapper is testable in isolation.

@@ -20,8 +20,17 @@ module SponsoredLogs
       "SPONSORED_LOGS_ADS_FILE" => [:ads_file, ->(v) { v }],
       "SPONSORED_LOGS_SELECTION" => [:selection, :to_sym.to_proc],
       "SPONSORED_LOGS_ASCII_ONLY" => [:ascii_only, ->(v) { truthy?(v) }],
-      "SPONSORED_LOGS_HOUSE_ADS" => [:house_ads, ->(v) { truthy?(v) }]
+      "SPONSORED_LOGS_HOUSE_ADS" => [:house_ads, ->(v) { truthy?(v) }],
+      "SPONSORED_LOGS_COLOR" => [:color, ->(v) { color_mode(v) }]
     }.freeze
+
+    # Map a raw SPONSORED_LOGS_COLOR value to a gilding mode symbol, falling
+    # back to :auto for anything unrecognized (invalid never forces color).
+    #
+    def self.color_mode(value)
+      symbol = value.to_s.strip.downcase.to_sym
+      Configuration::COLOR_MODES.include?(symbol) ? symbol : :auto
+    end
 
     def self.options(env = ENV)
       OPTION_MAP.each_with_object({}) do |(var, (key, coerce)), opts|

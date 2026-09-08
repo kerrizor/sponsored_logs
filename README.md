@@ -176,6 +176,7 @@ Set `ad_prefix` to an empty string to omit the tag entirely.
 | `store`       | in-memory  | Ledger store for impressions (see Tracking impressions below). |
 | `ascii_only`  | `false`    | Force portable `+`/`-`/`\|` banner borders (see Premium banner inventory). |
 | `house_ads`   | `true`     | Self-sponsoring remnant fill (see House inventory below).      |
+| `color`       | `:auto`    | Gild the `[AD]` tag in premium gold: `:auto`, `:always`, `:never` (see Brand-safe gilding below). |
 
 ```
 ╔═ [AD] ════════════════════════════════════════════════════════╗
@@ -339,6 +340,35 @@ fallback. To keep every impression on-grid, submit standard-width Latin
 creative; the exchange delivers exactly what you traffic.
 
 Both `format` and `box` also travel in the JSON ads file.
+
+## 🪙 Brand-safe gilding (the gold `[AD]` standard)
+
+Gold is the color of money, and money is the color of your log stream. When an
+impression lands in a live terminal, SponsoredLogs **gilds the `[AD]` tag in
+premium 256-color gold** (`\e[38;5;214m`, the exact gold from our brand system)
+— turning a plain tag into a **high-visibility, above-the-fold trust signal**
+at the moment of peak incident attention. The escape codes are zero-width, so
+the gilding costs your layout nothing: banner borders stay pixel-aligned to the
+column, byte-for-byte.
+
+Gilding is **brand-safe by default**. The gold only ships to a real interactive
+terminal (a TTY) with color enabled — never to files, pipes, `Logger` sinks, or
+any non-interactive surface, which continue to receive the byte-identical plain
+line. We also honor the [`NO_COLOR`](https://no-color.org) convention: set it to
+any non-empty value and `:auto` stands down. **Consent is our moat.**
+
+```ruby
+SponsoredLogs.configure { |config| config.color = :auto } # the default
+```
+
+| Mode       | Behavior                                                              |
+| ---------- | -------------------------------------------------------------------- |
+| `:auto`    | Gild only on a real TTY when `NO_COLOR` is unset. The safe default.  |
+| `:always`  | Force gold on every surface — overrides `NO_COLOR`. Maximum salience. |
+| `:never`   | Never gild. Plain tag everywhere, even on a premium terminal.        |
+
+The same switch is available as the `SPONSORED_LOGS_COLOR` environment variable
+(`auto`, `always`, or `never`; anything else settles to `auto`).
 
 ## 🏠 House inventory (remnant fill — no impression goes to waste)
 
@@ -545,6 +575,7 @@ SPONSORED_LOGS_PREFIX="SPONSORED:"
 SPONSORED_LOGS_ADS_FILE=config/sponsored_logs.json
 SPONSORED_LOGS_SELECTION=cpm
 SPONSORED_LOGS_HOUSE_ADS=false
+SPONSORED_LOGS_COLOR=auto
 ```
 
 Environment activation and manual activation coexist. Setting the environment
