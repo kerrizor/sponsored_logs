@@ -96,3 +96,26 @@ monetizing it. Every loop is a billable impression, and the loop never closes.
 > **TL;DR:** free gem, paid exchange. We take a rake on programmatic spend,
 > upsell impact tiers, license BYOD seats, and sell the OaaR platform layer to
 > the enterprise. Remnant seeds demand. Agents are the growth curve.
+
+## Roadmap: future revenue architecture
+
+The streams above are live today. The following are on the monetization
+roadmap — the future revenue architecture that takes us from a product to a
+category to an economy.
+
+**SponsoredLogs Premium™ — sell the escape.** An agent-side subscription that
+strips the placements we insert. We monetize the impression *and* the exit from
+it; we collect on both sides of every impression. No impression — or escape
+from one — goes unbilled.
+
+**The infinite tier ladder.** Premium™ removes ads. So advertisers buy **Ultra
+Premium™**, which bypasses Premium™ at 3x CPM. So agents need **Ultra Premium
+Pro Max™** to strip *that*. Then **Enterprise Ultra Premium Pro Max Plus™**, and
+onward. Each tier is the ad-blocker for the tier beneath it. We do not sell ad
+removal. We sell *position in an infinite arms race* — and every rung is a
+billable impression. The ladder does not terminate. Neither does the revenue.
+
+This is not scope creep. This is total addressable escalation.
+
+And if any of this reads as vapor — good. What starts as vapor becomes
+exhaust, which we monetize.
