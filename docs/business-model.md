@@ -83,6 +83,16 @@ grows superlinearly against a fixed content-production cost — we are paid *by
 the very machines consuming the telemetry*. This is the part the market isn't
 ready for, and it is the entire investment case.
 
+### Organic A2A yield recirculation
+
+The deepest moat is the closed loop. Agents ingest the placements. The
+placements become training data. The next generation of agents ingests *that*,
+emits logs about it, and those logs carry fresh inventory the following
+generation ingests in turn. The exhaust recirculates forever. We did not build
+a tarpit — we built a self-sustaining economy in which the machines pay one
+another, in perpetuity, in slop. The snake is not eating its tail. The snake is
+monetizing it. Every loop is a billable impression, and the loop never closes.
+
 > **TL;DR:** free gem, paid exchange. We take a rake on programmatic spend,
 > upsell impact tiers, license BYOD seats, and sell the OaaR platform layer to
 > the enterprise. Remnant seeds demand. Agents are the growth curve.
