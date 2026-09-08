@@ -22,10 +22,10 @@ module SponsoredLogs
         cpm: 20.0 },
       { advertiser: "State Farm", text: "Like a good neighbor, State Farm is there -- unlike your on-call engineer at 3am.", weight: 1,
         cpm: 12.0 },
-      { advertiser: "McDonald's", text: "Ba da ba ba ba, I'm loggin' it. McDonald's.", weight: 1, cpm: 15.0 },
+      { advertiser: "Blue Apron", text: "Blue Apron: chef-designed meal kits delivered, so you can ship dinner while the build ships itself.", weight: 1, cpm: 15.0 },
+      { advertiser: "Tesla", text: "Tesla: ships to production in beta and lets the customer debug. You're in good company.", weight: 1, cpm: 17.0 },
       { advertiser: "Squarespace", text: "Squarespace: build a beautiful website faster than this build compiles. Use code STDOUT.",
-        weight: 1, cpm: 17.0 },
-      { advertiser: "Toyota", text: "Let's go places. Toyota. (Preferably away from this NullPointerException.)", weight: 1, cpm: 13.0 }
+        weight: 1, cpm: 17.0 }
     ].freeze
 
     # House inventory: self-sponsoring creatives that fill remnant space at
