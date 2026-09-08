@@ -1310,5 +1310,27 @@ RSpec.describe SponsoredLogs do
       visible = colored.map { |line| line.gsub(/\e\[[0-9;]*m/, "") }
       expect(visible).to eq(plain)
     end
+
+    it "keeps the visible box aligned when the prefix is gilded (heavy)", :aggregate_failures do
+      colored = banner("Alignment check", box: :heavy, color: true).split("\n")
+      plain = banner("Alignment check", box: :heavy, color: false).split("\n")
+
+      # Strip the zero-width escapes; the heavy frame must match the plain one
+      # exactly, byte-for-byte, so the gold codes cost the border no columns.
+      #
+      visible = colored.map { |line| line.gsub(/\e\[[0-9;]*m/, "") }
+      expect(visible).to eq(plain)
+    end
+
+    it "keeps the visible box aligned when the prefix is gilded (double)", :aggregate_failures do
+      colored = banner("Alignment check", box: :double, color: true).split("\n")
+      plain = banner("Alignment check", box: :double, color: false).split("\n")
+
+      # Strip the zero-width escapes; the double frame must match the plain one
+      # exactly, byte-for-byte, so the gold codes cost the border no columns.
+      #
+      visible = colored.map { |line| line.gsub(/\e\[[0-9;]*m/, "") }
+      expect(visible).to eq(plain)
+    end
   end
 end
