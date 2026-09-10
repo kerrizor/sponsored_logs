@@ -609,6 +609,27 @@ Run the test suite:
 bundle exec rspec
 ```
 
+## 🏅 Certifications & Compliance
+
+The exchange meets or exceeds every standard that matters, and several we
+invented.
+
+[![ScriptPorn: 79 Filthy](https://scriptporn.com/badge/83-a-house-key-would-break-character/badge.svg)](https://scriptporn.com/v/83-a-house-key-would-break-character/)
+
+- 🧾 **ScriptPorn Verified™ — FILTHY (79/100).** Independently audited by a
+  five-judge panel; a season-finale score. SOC 2? We have something better.
+- 🛡️ **Brand-Safety Certified.** No creative has forged a log line since the
+  U+2028 incident of 2026. Zero known injection vectors. Zero.
+- ♻️ **Carbon-Neutral by Design.** We monetize exhaust that already exists. The
+  greenest CPM on Earth.
+- 🤖 **A2A-Ready™.** First-party audited for agent-to-agent interoperability.
+  Our fastest-growing auditors are not human.
+- ✅ **100% Viewability Guaranteed.** Independently unverifiable, because the
+  impressions are inside your logs, where no verification vendor can reach.
+- 🔒 **SponsoredLogs Promise™ Compliant.** Fully opt-in. Consent is our moat.
+
+_Governance is a feature. Excellence is a discipline, not a moment._
+
 ## 📜 License
 
 Released under the [MIT License](LICENSE.txt) — **democratizing access to the
