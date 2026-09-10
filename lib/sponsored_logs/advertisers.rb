@@ -69,7 +69,7 @@ module SponsoredLogs
     # Build one normalized ad row from a raw hash, or nil when text is blank.
     #
     def self.normalize_entry(entry)
-      text = fetch(entry, :text).to_s.strip
+      text = sanitize_text(fetch(entry, :text))
       return if text.empty?
 
       {
@@ -110,6 +110,22 @@ module SponsoredLogs
       entry[key] || entry[key.to_s]
     end
 
+    # Line-breaking and control characters that let crafted ad copy inject
+    # forged log lines when emitted raw: the C0 range plus DEL, and the Unicode
+    # line/paragraph separators U+2028/U+2029 that many log viewers and parsers
+    # treat as newlines. Newlines and carriage returns are the obvious vectors;
+    # the rest are neutralized for good measure.
+    #
+    CONTROL_CHARS = /[\u0000-\u001F\u007F\u2028\u2029]/
+
+    # Scrub emitted creative text: replace control characters with a space so a
+    # newline in ad copy cannot forge a second log line, then strip. Normal
+    # punctuation, em-dashes, and emoji are preserved untouched.
+    #
+    def self.sanitize_text(value)
+      value.to_s.gsub(CONTROL_CHARS, " ").strip
+    end
+
     # Normalize an advertiser name; blank/nil falls back to "Unattributed".
     #
     def self.coerce_advertiser(value)
@@ -133,7 +149,14 @@ module SponsoredLogs
       return default if value.nil?
 
       number = Float(value)
-      number.negative? ? 0.0 : number
+
+      # NaN and +/-Infinity parse cleanly but poison downstream math
+      # (weighted_pick sums + rand * total + target < cumulative all break),
+      # so treat non-finite demand as unsellable: zero, like a negative bid.
+      #
+      return 0.0 if number.negative? || !number.finite?
+
+      number
     rescue ArgumentError, TypeError
       default
     end
@@ -153,43 +176,23 @@ module SponsoredLogs
       nil
     end
 
-    # Whether an ad is within its flight window at `now`. Missing bounds are
-    # open-ended (nil starts_at = always started; nil ends_at = never ends).
+    # Flight-window and cap predicates live in Flight; delegated here so the
+    # public selection API (live?, status, capped?, eligible?) is unchanged.
     #
     def self.live?(ad, now)
-      return false if ad[:starts_at] && now < ad[:starts_at]
-      return false if ad[:ends_at] && now > ad[:ends_at]
-
-      true
+      Flight.live?(ad, now)
     end
 
-    # Whether an ad has reached its impression cap given a current count.
-    # Uncapped ads (nil cap) are never capped.
-    #
     def self.capped?(ad, count)
-      cap = ad[:cap]
-      return false if cap.nil?
-
-      count.to_i >= cap
+      Flight.capped?(ad, count)
     end
 
-    # Whether an ad is eligible for selection: live at `now` and not capped.
-    #
     def self.eligible?(ad, now, count)
-      live?(ad, now) && !capped?(ad, count)
+      Flight.eligible?(ad, now, count)
     end
 
-    # Status of an ad at `now` given its impression count: :exhausted (cap
-    # reached), :scheduled (window not started), :ended (window passed),
-    # :evergreen (no bounds), or :active.
-    #
     def self.status(ad, now = Time.now, count = 0)
-      return :exhausted if capped?(ad, count)
-      return :scheduled if ad[:starts_at] && now < ad[:starts_at]
-      return :ended if ad[:ends_at] && now > ad[:ends_at]
-      return :evergreen if ad[:starts_at].nil? && ad[:ends_at].nil?
-
-      :active
+      Flight.status(ad, now, count)
     end
 
     # Pick one normalized ad entry using the given selection mode, considering
@@ -211,7 +214,14 @@ module SponsoredLogs
       return if pool.empty?
 
       key = SELECTION_MODES.include?(mode) ? mode : :weight
-      key = :weight if key == :cpm && pool.sum { |ad| ad[:cpm] }.zero?
+
+      # Fall back to weight when there is no sellable cpm demand. `positive?`
+      # (rather than `zero?`) also catches a non-finite or negative sum, so a
+      # NaN/Infinity cpm that ever reaches this line can't skip the fallback and
+      # poison weighted_pick. coerce_number already zeroes NaN upstream; this is
+      # the defense-in-depth guard for the downstream decision.
+      #
+      key = :weight if key == :cpm && !pool.sum { |ad| ad[:cpm] }.positive?
 
       weighted_pick(pool, key)
     end
