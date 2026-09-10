@@ -5,6 +5,7 @@ require "logger"
 require_relative "sponsored_logs/version"
 require_relative "sponsored_logs/color"
 require_relative "sponsored_logs/advertisers"
+require_relative "sponsored_logs/identity"
 require_relative "sponsored_logs/flight"
 require_relative "sponsored_logs/banner"
 require_relative "sponsored_logs/ads_file"
@@ -159,37 +160,49 @@ module SponsoredLogs
 
     private
 
-    # Map of ad text => normalized config metadata (weight/cpm/flight/cap),
+    # Map of ad id => normalized config metadata (text/weight/cpm/flight/cap),
     # used to enrich report rows and drive status.
     #
     def ad_metadata
-      Advertisers.normalize(configuration.ads).to_h { |ad| [ad[:text], ad] }
+      Advertisers.normalize(configuration.ads).to_h { |ad| [ad[:id], ad] }
     end
 
     # Partition every known ad (served or configured) into running / upcoming /
-    # finished report rows by flight-and-cap status.
+    # finished report rows by flight-and-cap status. Ads are keyed by stable id;
+    # the human-readable text comes from the served ledger entry or config meta.
     #
     def grouped_report_rows
       now = Time.now
       metas = ad_metadata
       counts = ledger.impression_counts
-      served = ledger.entries.to_h { |entry| [entry.text, entry] }
+      served = ledger.entries.to_h { |entry| [entry.id, entry] }
 
       grouped = Hash.new { |h, k| h[k] = [] }
-
-      (served.keys + metas.keys).uniq.each do |text|
-        meta = metas[text] || {}
-        status = Advertisers.status(meta, now, counts[text].to_i)
-        row = report_row(text, meta, served[text], status)
-
-        case status
-        when :scheduled then grouped[:upcoming] << row
-        when :ended, :exhausted then grouped[:finished] << row
-        else grouped[:running] << row if served[text]
-        end
+      (served.keys + metas.keys).uniq.each do |id|
+        meta = metas[id] || {}
+        entry = served[id]
+        bucket, row = report_bucket_for(meta, entry, now, counts[id].to_i)
+        grouped[bucket] << row if bucket
       end
 
       grouped
+    end
+
+    # Classify one ad into its report bucket (:running / :upcoming / :finished)
+    # and build its row. Text comes from the served ledger entry (latest copy)
+    # or, for an unserved configured ad, its config meta. Running rows are
+    # impression-driven, so an unserved running ad returns a nil bucket.
+    #
+    def report_bucket_for(meta, entry, now, count)
+      text = entry ? entry.text : meta[:text]
+      status = Advertisers.status(meta, now, count)
+      row = report_row(text, meta, entry, status)
+
+      case status
+      when :scheduled then [:upcoming, row]
+      when :ended, :exhausted then [:finished, row]
+      else entry ? [:running, row] : [nil, row]
+      end
     end
 
     # A single report row. Impressions/spend come from the ledger entry when the

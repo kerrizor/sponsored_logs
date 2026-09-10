@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Identity is a moat.** Copy is a draft, not an account — an advertiser that rewrites its line is not a new advertiser. Every ad takes an optional `id`; set it and impressions, spend, and cap ride through a mid-flight rewrite, omit it and `id` falls back to a content hash of the text so nothing already booked moves. Two advertisers can even run the same line as separate books. Works in the JSON ads file
+
+### Changed
+
+- **The ledger settles by account, not by copy.** The store snapshot is now `{ id => {text:, impressions:, cpm:} }` — text rides along as a label so the Command Center still reads in plain English, but caps and reporting key on `id` end to end. Custom stores must return the new shape
+- **`text_digest` retires; `ad_id` takes the desk.** The ActiveRecord ledger keys on `ad_id`, which for a no-id ad is exactly the old text digest, so existing rows line up untouched. Existing installs rerun `rails g sponsored_logs:install` (or rename the column and its unique index). The Redis store keys on `id` too, so existing Redis tallies reset once on upgrade
+
 ## [0.3.1] - 2026-09-10
 
 ### Fixed

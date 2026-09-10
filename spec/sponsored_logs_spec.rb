@@ -3,6 +3,7 @@
 require "stringio"
 require "logger"
 require "tempfile"
+require "digest"
 
 RSpec.describe SponsoredLogs do
   describe ".sponsor! and .unsponsor!" do
@@ -730,7 +731,9 @@ RSpec.describe SponsoredLogs do
         { text: "capped", weight: 5, cap: 10 },
         { text: "open", weight: 1 }
       ]
-      counts = { "capped" => 10 }
+      # Counts are keyed by ad id; a no-id ad's id is SHA256(text).
+      #
+      counts = { Digest::SHA256.hexdigest("capped") => 10 }
       results = Array.new(100) do
         SponsoredLogs::Advertisers.render(
           SponsoredLogs::Advertisers.pick(ads, now: now, counts: counts), ""
@@ -741,7 +744,8 @@ RSpec.describe SponsoredLogs do
 
     it "pick still allows an ad under its cap" do
       ads = [{ text: "capped", weight: 1, cap: 10 }]
-      picked = SponsoredLogs::Advertisers.pick(ads, now: now, counts: { "capped" => 9 })
+      counts = { Digest::SHA256.hexdigest("capped") => 9 }
+      picked = SponsoredLogs::Advertisers.pick(ads, now: now, counts: counts)
       expect(picked[:text]).to eq("capped")
     end
   end
@@ -828,7 +832,7 @@ RSpec.describe SponsoredLogs do
           .to receive(:paid_default_pool)
           .and_return([{ text: "capped", weight: 1, cap: 1 }])
 
-        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { Digest::SHA256.hexdigest("capped") => 5 })
         expect(picked).not_to be_nil
         expect(house_texts).to include(picked[:text])
         expect(picked[:advertiser]).to eq("SponsoredLogs")
@@ -869,7 +873,7 @@ RSpec.describe SponsoredLogs do
           .to receive(:paid_default_pool)
           .and_return([{ text: "capped", weight: 1, cap: 1 }])
 
-        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+        picked = SponsoredLogs::Advertisers.pick(expired, now: now, counts: { Digest::SHA256.hexdigest("capped") => 5 })
         expect(picked).not_to be_nil
         expect(picked[:advertiser]).to eq("SponsoredLogs")
       end
@@ -901,16 +905,17 @@ RSpec.describe SponsoredLogs do
           .and_return([{ text: "capped", weight: 1, cap: 1 }])
 
         expect(
-          SponsoredLogs::Advertisers.pick(expired, now: now, counts: { "capped" => 5 })
+          SponsoredLogs::Advertisers.pick(expired, now: now, counts: { Digest::SHA256.hexdigest("capped") => 5 })
         ).to be_nil
       end
 
       it "still returns nil for an out-of-flight user pool" do
         expired = [{ text: "expired", weight: 1, ends_at: "2000-01-01" }]
-        counts = { "expired" => 0 }
-        # Every PAID default is also forced ineligible so only the floor could save it.
+        counts = { Digest::SHA256.hexdigest("expired") => 0 }
+        # Every PAID default is also forced ineligible so only the floor could
+        # save it. Counts are keyed by ad id (SHA256(text) for these no-id ads).
         #
-        paid_counts = SponsoredLogs::Advertisers::PAID_ADS.to_h { |ad| [ad[:text], 1_000_000] }
+        paid_counts = SponsoredLogs::Advertisers::PAID_ADS.to_h { |ad| [Digest::SHA256.hexdigest(ad[:text]), 1_000_000] }
         capped_pool = SponsoredLogs::Advertisers::PAID_ADS.map { |ad| ad.merge(cap: 1) }
         allow(SponsoredLogs::Advertisers).to receive(:paid_default_pool).and_return(capped_pool)
 
