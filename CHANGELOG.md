@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fill integrity is a moat.** A `NaN` bid is not demand — it's a tourist. It used to slip past the guard into `weighted_pick` and stall the whole rotation. Now non-finite bids (`NaN`, `±Infinity`) bill at zero where they belong, and the exchange keeps clearing. We don't let bad actors set the price
+- **Brand safety is table stakes.** A creative that forges its own `ERROR` line isn't a placement — it's fraud with ambitions. Control characters, DEL, and the sneaky Unicode separators (U+2028/U+2029) now collapse to a space before serving. Punctuation, em-dashes, and emoji survive. The exploit does not
+
 ## [0.3.0] - 2026-09-07
 
 ### Fixed

@@ -159,6 +159,57 @@ RSpec.describe SponsoredLogs do
     end
   end
 
+  describe ".emit log-injection hardening" do
+    it "cannot forge a second log line from a newline in ad text", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Legit copy\nERROR forged incident", weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string.count("\n")).to eq(1)
+      expect(io.string).to end_with("\n")
+      expect(io.string.chomp).not_to include("\n")
+      expect(io.string).to include("ERROR forged incident")
+    end
+
+    it "cannot forge a second log line from a CRLF in ad text", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Legit copy\r\nERROR forged incident", weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string.count("\n")).to eq(1)
+      expect(io.string).not_to include("\r")
+    end
+
+    it "neutralizes escape and other control characters in ad text", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Legit\e[31mcopy\u0000tail", weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string.chomp).not_to match(/[\u0000-\u001F\u007F]/)
+      expect(io.string.count("\n")).to eq(1)
+    end
+
+    it "cannot forge a second log line from a U+2028 line separator", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Legit copy\u2028ERROR forged incident", weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string).not_to include("\u2028")
+      expect(io.string.count("\n")).to eq(1)
+      expect(io.string).to include("ERROR forged incident")
+    end
+
+    it "cannot forge a second log line from a U+2029 paragraph separator", :aggregate_failures do
+      io = StringIO.new
+      described_class.sponsor!(ads: [{ text: "Legit copy\u2029ERROR forged incident", weight: 1 }])
+      described_class.emit(io)
+
+      expect(io.string).not_to include("\u2029")
+      expect(io.string.count("\n")).to eq(1)
+      expect(io.string).to include("ERROR forged incident")
+    end
+  end
+
   describe "configuration" do
     it "defaults ad_prefix to [AD]" do
       expect(described_class.configuration.ad_prefix).to eq("[AD]")
@@ -435,6 +486,50 @@ RSpec.describe SponsoredLogs do
       results = Array.new(200) { render(pool, prefix: "", mode: :cpm) }
       expect(results.uniq).to eq(["picked"])
     end
+
+    it "never lets a non-finite weight poison weighted selection", :aggregate_failures do
+      pool = [
+        { text: "picked", weight: 1 },
+        { text: "poison", weight: Float::NAN }
+      ]
+      results = Array.new(200) { render(pool, prefix: "") }
+      expect(results.uniq).to eq(["picked"])
+    end
+
+    it "never lets a non-finite cpm poison :cpm selection", :aggregate_failures do
+      pool = [
+        { text: "picked", weight: 1, cpm: 5 },
+        { text: "poison", weight: 1, cpm: Float::INFINITY }
+      ]
+      results = Array.new(200) { render(pool, prefix: "", mode: :cpm) }
+      # Selection stays well-behaved: it always resolves to a real ad from the
+      # pool and never stalls or emits a NaN-poisoned line.
+      #
+      expect(results).to all(satisfy { |line| %w[picked poison].include?(line) })
+      expect(results).not_to include(nil)
+    end
+
+    it "keeps the :cpm-mode fallback robust when a non-finite cpm reaches selection", :aggregate_failures do
+      # Defense-in-depth: coerce_number zeroes NaN upstream, so simulate a raw
+      # NaN cpm slipping past normalization to prove the line-215 fallback
+      # (cpm -> weight) still fires on a non-finite sum instead of handing NaN
+      # to weighted_pick.
+      #
+      raw = [
+        { advertiser: "A", text: "picked", weight: 1.0, cpm: Float::NAN,
+          starts_at: nil, ends_at: nil, cap: nil, format: :text, box: :light },
+        { advertiser: "B", text: "skipped", weight: 0.0, cpm: Float::NAN,
+          starts_at: nil, ends_at: nil, cap: nil, format: :text, box: :light }
+      ]
+      allow(SponsoredLogs::Advertisers).to receive(:normalize).and_return(raw)
+
+      results = Array.new(200) do
+        SponsoredLogs::Advertisers.render(SponsoredLogs::Advertisers.pick(raw, mode: :cpm), "")
+      end
+
+      expect(results.uniq).to eq(["picked"])
+      expect(results).not_to include(nil)
+    end
   end
 
   describe "Advertisers.normalize" do
@@ -456,6 +551,32 @@ RSpec.describe SponsoredLogs do
     it "defaults an unparseable weight to 1 and unparseable cpm to 0" do
       expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "nope", cpm: "bad" }]).first)
         .to include(weight: 1.0, cpm: 0.0)
+    end
+
+    it "zeroes a non-finite float weight and cpm", :aggregate_failures do
+      ad = SponsoredLogs::Advertisers.normalize(
+        [{ text: "x", weight: Float::NAN, cpm: Float::INFINITY }]
+      ).first
+      expect(ad[:weight]).to eq(0.0)
+      expect(ad[:cpm]).to eq(0.0)
+    end
+
+    it "zeroes negative infinity" do
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: -Float::INFINITY }]).first)
+        .to include(weight: 0.0)
+    end
+
+    it "never stores a non-finite value from the strings NaN, Infinity, -Infinity", :aggregate_failures do
+      ad = SponsoredLogs::Advertisers.normalize(
+        [{ text: "x", weight: "NaN", cpm: "Infinity" }]
+      ).first
+      # These strings are unparseable as demand, so they fall to the defaults
+      # (weight 1.0, cpm 0.0); the invariant is that the stored value is finite.
+      #
+      expect(ad[:weight]).to be_finite
+      expect(ad[:cpm]).to be_finite
+      expect(SponsoredLogs::Advertisers.normalize([{ text: "x", weight: "-Infinity" }]).first[:weight])
+        .to be_finite
     end
 
     it "drops entries with blank text", :aggregate_failures do
@@ -913,6 +1034,28 @@ RSpec.describe SponsoredLogs do
         ad = SponsoredLogs::Advertisers.normalize([{ text: "x", format: :nope, box: 7 }]).first
         expect(ad[:format]).to eq(:text)
         expect(ad[:box]).to eq(:light)
+      end
+
+      it "strips newlines and carriage returns from creative text", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize(
+          [{ text: "Buy now\nERROR forged log line" }]
+        ).first
+        expect(ad[:text]).not_to include("\n")
+        expect(ad[:text]).not_to include("\r")
+      end
+
+      it "strips other C0 control characters and DEL from creative text", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize(
+          [{ text: "Buy\enow\ttoday\u0000\u007F" }]
+        ).first
+        expect(ad[:text]).not_to match(/[\u0000-\u001F\u007F]/)
+      end
+
+      it "preserves normal punctuation, em-dashes, and emoji", :aggregate_failures do
+        ad = SponsoredLogs::Advertisers.normalize(
+          [{ text: "Ship it -- fast, cheap & bold! 🚀📈" }]
+        ).first
+        expect(ad[:text]).to eq("Ship it -- fast, cheap & bold! 🚀📈")
       end
     end
   end
