@@ -12,25 +12,25 @@ end
 RSpec.describe SponsoredLogs::Ledger::Store::Memory do
   let(:store) { described_class.new }
 
-  it "records impressions and cpm, keyed by text" do
-    2.times { store.record(text: "a", weight: 1, cpm: 10.0) }
-    store.record(text: "b", weight: 1, cpm: 5.0)
+  it "records impressions and cpm, keyed by id with text as a value", :aggregate_failures do
+    2.times { store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0) }
+    store.record(id: "b", text: "Ad B", weight: 1, cpm: 5.0)
 
     expect(store.snapshot).to eq(
-      "a" => { impressions: 2, cpm: 10.0 },
-      "b" => { impressions: 1, cpm: 5.0 }
+      "a" => { text: "Ad A", impressions: 2, cpm: 10.0 },
+      "b" => { text: "Ad B", impressions: 1, cpm: 5.0 }
     )
   end
 
   it "reset clears the snapshot" do
-    store.record(text: "a", weight: 1, cpm: 10.0)
+    store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0)
     store.reset
     expect(store.snapshot).to eq({})
   end
 
   it "records concurrently without losing increments" do
     threads = Array.new(10) do
-      Thread.new { 100.times { store.record(text: "a", weight: 1, cpm: 1.0) } }
+      Thread.new { 100.times { store.record(id: "a", text: "Ad A", weight: 1, cpm: 1.0) } }
     end
     threads.each(&:join)
 
@@ -68,18 +68,18 @@ RSpec.describe SponsoredLogs::Ledger::Store::Redis do
 
   let(:store) { described_class.new(client: fake_redis) }
 
-  it "records impressions and cpm via the client" do
-    2.times { store.record(text: "a", weight: 1, cpm: 10.0) }
-    store.record(text: "b", weight: 1, cpm: 5.0)
+  it "records impressions and cpm via the client, keyed by id", :aggregate_failures do
+    2.times { store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0) }
+    store.record(id: "b", text: "Ad B", weight: 1, cpm: 5.0)
 
     expect(store.snapshot).to eq(
-      "a" => { impressions: 2, cpm: 10.0 },
-      "b" => { impressions: 1, cpm: 5.0 }
+      "a" => { text: "Ad A", impressions: 2, cpm: 10.0 },
+      "b" => { text: "Ad B", impressions: 1, cpm: 5.0 }
     )
   end
 
   it "reset deletes the keys" do
-    store.record(text: "a", weight: 1, cpm: 10.0)
+    store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0)
     store.reset
     expect(store.snapshot).to eq({})
   end

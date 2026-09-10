@@ -7,7 +7,7 @@ module SponsoredLogs
     # Spend for an ad is impressions / 1000.0 * cpm (cost per mille).
     #
     class Report
-      Entry = Struct.new(:text, :impressions, :cpm, :spend, keyword_init: true)
+      Entry = Struct.new(:id, :text, :impressions, :cpm, :spend, keyword_init: true)
 
       def initialize(store)
         @store = store
@@ -18,17 +18,18 @@ module SponsoredLogs
       end
 
       def total_impressions
-        @store.snapshot.sum { |_text, data| data[:impressions] }
+        @store.snapshot.sum { |_id, data| data[:impressions] }
       end
 
       def total_spend
-        @store.snapshot.sum { |_text, data| spend_for(data[:impressions], data[:cpm]) }
+        @store.snapshot.sum { |_id, data| spend_for(data[:impressions], data[:cpm]) }
       end
 
       def entries
-        @store.snapshot.map do |text, data|
+        @store.snapshot.map do |id, data|
           Entry.new(
-            text: text,
+            id: id,
+            text: data[:text],
             impressions: data[:impressions],
             cpm: data[:cpm].to_f,
             spend: spend_for(data[:impressions], data[:cpm])
@@ -36,7 +37,7 @@ module SponsoredLogs
         end
       end
 
-      # Map of ad text => recorded impressions, for cap enforcement.
+      # Map of ad id => recorded impressions, for cap enforcement.
       #
       def impression_counts
         @store.snapshot.transform_values { |data| data[:impressions] }

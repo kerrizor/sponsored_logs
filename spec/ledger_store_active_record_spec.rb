@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "active_record"
+require "digest"
 require "tmpdir"
 
 RSpec.describe SponsoredLogs::Ledger::Store::ActiveRecord do
@@ -13,13 +14,13 @@ RSpec.describe SponsoredLogs::Ledger::Store::ActiveRecord do
     ActiveRecord::Schema.verbose = false
     ActiveRecord::Schema.define do
       create_table :sponsored_logs_impressions, force: true do |t|
-        t.string  :text_digest, null: false
+        t.string  :ad_id,       null: false
         t.text    :text,        null: false
         t.integer :impressions, null: false, default: 0
         t.float   :cpm,         null: false, default: 0.0
         t.timestamps
       end
-      add_index :sponsored_logs_impressions, :text_digest, unique: true
+      add_index :sponsored_logs_impressions, :ad_id, unique: true
     end
   end
 
@@ -32,26 +33,42 @@ RSpec.describe SponsoredLogs::Ledger::Store::ActiveRecord do
 
   after { store.reset }
 
-  it "records impressions and cpm, keyed by text" do
-    2.times { store.record(text: "a", weight: 1, cpm: 10.0) }
-    store.record(text: "b", weight: 1, cpm: 5.0)
+  it "records impressions and cpm, keyed by id with text as a value", :aggregate_failures do
+    2.times { store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0) }
+    store.record(id: "b", text: "Ad B", weight: 1, cpm: 5.0)
 
     expect(store.snapshot).to eq(
-      "a" => { impressions: 2, cpm: 10.0 },
-      "b" => { impressions: 1, cpm: 5.0 }
+      "a" => { text: "Ad A", impressions: 2, cpm: 10.0 },
+      "b" => { text: "Ad B", impressions: 1, cpm: 5.0 }
     )
   end
 
+  it "defaults a no-id ad's ad_id to SHA256(text), matching the old digest key", :aggregate_failures do
+    store.record(text: "legacy copy", weight: 1, cpm: 4.0)
+
+    digest = Digest::SHA256.hexdigest("legacy copy")
+    expect(store.snapshot.keys).to eq([digest])
+    expect(store.snapshot[digest]).to eq(text: "legacy copy", impressions: 1, cpm: 4.0)
+  end
+
+  it "keeps one tally for a stable id across a copy edit", :aggregate_failures do
+    store.record(id: "promo", text: "v1", weight: 1, cpm: 6.0)
+    store.record(id: "promo", text: "v2 edited", weight: 1, cpm: 6.0)
+
+    expect(store.snapshot.keys).to eq(["promo"])
+    expect(store.snapshot["promo"]).to eq(text: "v2 edited", impressions: 2, cpm: 6.0)
+  end
+
   it "persists across store instances (same table)", :aggregate_failures do
-    described_class.new.record(text: "persisted", weight: 1, cpm: 7.0)
+    described_class.new.record(id: "persisted", text: "Persisted", weight: 1, cpm: 7.0)
 
     fresh = described_class.new
-    expect(fresh.snapshot["persisted"]).to eq(impressions: 1, cpm: 7.0)
+    expect(fresh.snapshot["persisted"]).to eq(text: "Persisted", impressions: 1, cpm: 7.0)
   end
 
   it "increments atomically under concurrency" do
     threads = Array.new(5) do
-      Thread.new { 20.times { described_class.new.record(text: "hot", weight: 1, cpm: 1.0) } }
+      Thread.new { 20.times { described_class.new.record(id: "hot", text: "Hot", weight: 1, cpm: 1.0) } }
     end
     threads.each(&:join)
 
@@ -59,15 +76,15 @@ RSpec.describe SponsoredLogs::Ledger::Store::ActiveRecord do
   end
 
   it "reset clears the rows" do
-    store.record(text: "a", weight: 1, cpm: 10.0)
+    store.record(id: "a", text: "Ad A", weight: 1, cpm: 10.0)
     store.reset
     expect(store.snapshot).to eq({})
   end
 
-  it "handles long ad text via the digest key" do
+  it "handles long ad text via the id key" do
     long = "Sponsored by #{"x" * 5000}"
-    store.record(text: long, weight: 1, cpm: 3.0)
+    store.record(id: "long", text: long, weight: 1, cpm: 3.0)
 
-    expect(store.snapshot[long]).to eq(impressions: 1, cpm: 3.0)
+    expect(store.snapshot["long"]).to eq(text: long, impressions: 1, cpm: 3.0)
   end
 end

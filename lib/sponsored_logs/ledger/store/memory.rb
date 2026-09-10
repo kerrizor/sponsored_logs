@@ -3,9 +3,10 @@
 module SponsoredLogs
   module Ledger
     module Store
-      # Default adapter. Keeps impression counts and CPMs in memory, keyed by ad
-      # text. Not persisted across process restarts. A mutex guards writes so the
-      # periodic thread and request threads can record concurrently.
+      # Default adapter. Keeps impression counts and CPMs in memory, keyed by the
+      # stable ad id (text stored alongside for display). Not persisted across
+      # process restarts. A mutex guards writes so the periodic thread and
+      # request threads can record concurrently.
       #
       class Memory < Base
         def initialize
@@ -13,19 +14,23 @@ module SponsoredLogs
           @mutex = Mutex.new
           @impressions = Hash.new(0)
           @cpm = {}
+          @text = {}
         end
 
         def record(ad)
+          id = Identity.id_for(ad)
+
           @mutex.synchronize do
-            @impressions[ad[:text]] += 1
-            @cpm[ad[:text]] = ad[:cpm].to_f
+            @impressions[id] += 1
+            @cpm[id] = ad[:cpm].to_f
+            @text[id] = ad[:text].to_s
           end
         end
 
         def snapshot
           @mutex.synchronize do
-            @impressions.each_with_object({}) do |(text, count), acc|
-              acc[text] = { impressions: count, cpm: @cpm[text].to_f }
+            @impressions.each_with_object({}) do |(id, count), acc|
+              acc[id] = { text: @text[id], impressions: count, cpm: @cpm[id].to_f }
             end
           end
         end
@@ -34,6 +39,7 @@ module SponsoredLogs
           @mutex.synchronize do
             @impressions = Hash.new(0)
             @cpm = {}
+            @text = {}
           end
           self
         end

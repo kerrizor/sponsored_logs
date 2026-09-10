@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require "digest"
 
 module SponsoredLogs
   module Advertisers
@@ -73,6 +74,7 @@ module SponsoredLogs
       return if text.empty?
 
       {
+        id: Identity.coerce_id(fetch(entry, :id), text),
         advertiser: coerce_advertiser(fetch(entry, :advertiser)),
         text: text,
         weight: coerce_number(fetch(entry, :weight), default: 1.0),
@@ -197,7 +199,7 @@ module SponsoredLogs
 
     # Pick one normalized ad entry using the given selection mode, considering
     # only ads eligible at `now` -- live within their flight window and under
-    # their impression cap (counts is a text => impressions map). In :cpm mode
+    # their impression cap (counts is an id => impressions map). In :cpm mode
     # the cpm drives the odds; if every eligible cpm is 0 we fall back to manual
     # weights so selection never stalls.
     #
@@ -233,11 +235,12 @@ module SponsoredLogs
       house_ads? ? DEFAULT_ADS : PAID_ADS
     end
 
-    # Texts that identify house inventory, used to exclude house ads from
+    # Ids that identify house inventory, used to exclude house ads from
     # selection when the toggle is off (they can arrive via a user-supplied
-    # DEFAULT_ADS pool, not just the fallback).
+    # DEFAULT_ADS pool, not just the fallback). Keyed by id, not text, so
+    # editing house-ad copy can't break the match.
     #
-    HOUSE_TEXTS = HOUSE_ADS.map { |ad| ad[:text] }.freeze
+    HOUSE_IDS = HOUSE_ADS.map { |ad| Digest::SHA256.hexdigest(ad[:text]) }.freeze
 
     # Strip house creatives from a pool when the house_ads toggle is off; a
     # no-op when it is on. Keeps house ads out of rotation everywhere, not just
@@ -246,7 +249,7 @@ module SponsoredLogs
     def self.drop_house(pool)
       return pool if house_ads?
 
-      pool.reject { |ad| HOUSE_TEXTS.include?(ad[:text]) }
+      pool.reject { |ad| HOUSE_IDS.include?(Identity.id_for(ad)) }
     end
 
     # Whether the self-sponsoring house-ad inventory is enabled. Defaults to on
@@ -262,7 +265,7 @@ module SponsoredLogs
     end
 
     def self.eligible(pool, now, counts)
-      pool.select { |ad| eligible?(ad, now, counts[ad[:text]].to_i) }
+      pool.select { |ad| eligible?(ad, now, counts[Identity.id_for(ad)].to_i) }
     end
 
     # Render a normalized ad. :text ads (the default) stay byte-identical to

@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require "digest"
-
 module SponsoredLogs
   module Ledger
     module Store
-      # Persistent store backed by ActiveRecord, one row per ad keyed by a
-      # SHA256 digest of the ad text (the full text is stored alongside for
-      # reporting). Rows live in `sponsored_logs_impressions`; run the
+      # Persistent store backed by ActiveRecord, one row per ad keyed by the
+      # stable ad id (the full text is stored alongside for reporting). For an
+      # ad with no explicit id the id defaults to SHA256(text), so the ad_id
+      # column holds exactly the digest the pre-0.4.0 text_digest column did.
+      # Rows live in `sponsored_logs_impressions`; run the
       # `sponsored_logs:install` generator to create the migration.
       #
       # ActiveRecord is required lazily, so it stays an optional dependency.
@@ -20,24 +20,25 @@ module SponsoredLogs
         end
 
         def record(ad)
-          digest = digest_for(ad[:text])
+          id = Identity.id_for(ad)
 
           # insert skips on conflict (INSERT ... ON CONFLICT DO NOTHING), so an
           # existing row keeps its impression count. Then atomically bump the
-          # counter and refresh cpm in a single UPDATE.
+          # counter and refresh cpm and text in a single UPDATE, so a stable id
+          # whose copy was edited shows the latest text (like the other stores).
           #
           @model.insert(
-            { text_digest: digest, text: ad[:text], cpm: ad[:cpm].to_f, impressions: 0 },
-            unique_by: :text_digest
+            { ad_id: id, text: ad[:text], cpm: ad[:cpm].to_f, impressions: 0 },
+            unique_by: :ad_id
           )
-          @model.where(text_digest: digest).update_all(
-            ["impressions = impressions + 1, cpm = ?", ad[:cpm].to_f]
+          @model.where(ad_id: id).update_all(
+            ["impressions = impressions + 1, cpm = ?, text = ?", ad[:cpm].to_f, ad[:text].to_s]
           )
         end
 
         def snapshot
           @model.all.to_h do |row|
-            [row.text, { impressions: row.impressions.to_i, cpm: row.cpm.to_f }]
+            [row.ad_id, { text: row.text, impressions: row.impressions.to_i, cpm: row.cpm.to_f }]
           end
         end
 
@@ -47,10 +48,6 @@ module SponsoredLogs
         end
 
         private
-
-        def digest_for(text)
-          Digest::SHA256.hexdigest(text.to_s)
-        end
 
         # Defined lazily so requiring this file never needs ActiveRecord loaded.
         #
