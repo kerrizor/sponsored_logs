@@ -233,6 +233,26 @@ A missing `weight` defaults to `1`; a negative weight is treated as `0`. A
 missing `cpm` defaults to `0`. A pool that is empty, has only blank text, or
 sums to zero weight falls back to the built-in list.
 
+### 🪪 Stable ad identity (portfolio continuity)
+
+Copy is not identity — copy is a draft. An advertiser that rewrites its line is
+not a new account, and two advertisers that happen to write the same line are
+not one. Give each creative a stable `id` and its impressions, spend, and cap
+carry across every rewrite:
+
+```ruby
+SponsoredLogs.sponsor!(ads: [
+  { id: "acme-q3", text: "Acme: now with more Acme.", weight: 1, cap: 10_000 },
+  { id: "acme-q3", text: "Acme: even MORE Acme.",     weight: 1, cap: 10_000 } # same account, new copy
+])
+```
+
+Omit `id` and it defaults to a content hash of the text — exactly how the ledger
+has always keyed — so nothing already in flight moves. `id` works in the JSON
+ads file too. Tallies, cap governance, and the Command Center all settle by
+account, then read your copy back in plain English. **An advertiser should never
+have to re-earn its own history just to fix a typo.**
+
 ### 🗓️ Flighting (start and end dates)
 
 **Campaign flighting** — table stakes for any serious ad server, and we deliver
