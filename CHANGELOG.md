@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-10
+
 ### Added
 
 - **Identity is a moat.** Copy is a draft, not an account — an advertiser that rewrites its line is not a new advertiser. Every ad takes an optional `id`; set it and impressions, spend, and cap ride through a mid-flight rewrite, omit it and `id` falls back to a content hash of the text so nothing already booked moves. Two advertisers can even run the same line as separate books. Works in the JSON ads file
@@ -87,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Requires Ruby >= 3.1
 
-[Unreleased]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sponsoredlogs/sponsored_logs/compare/v0.1.0...v0.2.0
