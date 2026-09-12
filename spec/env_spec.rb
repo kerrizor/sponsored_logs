@@ -23,6 +23,7 @@ RSpec.describe SponsoredLogs::Env do
     it "parses each supported override", :aggregate_failures do
       env = {
         "SPONSORED_LOGS_PROBABILITY" => "0.25",
+        "SPONSORED_LOGS_HTML_PROBABILITY" => "0.75",
         "SPONSORED_LOGS_INTERVAL" => "15",
         "SPONSORED_LOGS_PERIODIC" => "true",
         "SPONSORED_LOGS_PREFIX" => "SPONSORED:",
@@ -31,6 +32,7 @@ RSpec.describe SponsoredLogs::Env do
 
       expect(described_class.options(env)).to eq(
         probability: 0.25,
+        html_probability: 0.75,
         interval: 15.0,
         periodic: true,
         ad_prefix: "SPONSORED:",

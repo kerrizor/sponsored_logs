@@ -16,6 +16,7 @@ require_relative "sponsored_logs/ledger/store/active_record"
 require_relative "sponsored_logs/ledger/report"
 require_relative "sponsored_logs/configuration"
 require_relative "sponsored_logs/injector"
+require_relative "sponsored_logs/html_comment"
 require_relative "sponsored_logs/env"
 
 module SponsoredLogs
@@ -95,6 +96,24 @@ module SponsoredLogs
       end
 
       line
+    end
+
+    # HTML analog of maybe_emit, gated by its own html_probability knob because
+    # page renders are rarer than per-puts log lines.
+    #
+    def maybe_html_comment
+      return unless active?
+      return unless rand < configuration.html_probability
+
+      render_html_comment
+    end
+
+    # Pick, record, and wrap one ad as a hardened HTML comment (nil when none is
+    # eligible). Delegates to the shared HtmlComment core so the controller
+    # patch and, later, the partial hook reuse one path and one ledger.
+    #
+    def render_html_comment
+      HtmlComment.render(configuration, ledger)
     end
 
     # Rebuilt when the configured store changes, so swapping the store via
