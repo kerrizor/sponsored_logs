@@ -2,8 +2,8 @@
 
 module SponsoredLogs
   class Configuration
-    attr_accessor :probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store, :report_page,
-                  :ascii_only, :house_ads
+    attr_accessor :probability, :html_probability, :periodic, :interval, :output, :ad_prefix, :ads, :selection, :store,
+                  :report_page, :ascii_only, :house_ads
     attr_reader :color
 
     # Gilding modes for the [AD] prefix. :auto gilds only on a NO_COLOR-clear
@@ -14,12 +14,13 @@ module SponsoredLogs
     # Settings that map 1:1 onto an accessor. ads/ads_file are handled
     # separately because they interact (ads wins; ads_file loads into ads).
     #
-    DIRECT_KEYS = %i[probability periodic interval output ad_prefix selection store report_page ascii_only
-                     house_ads color].freeze
+    DIRECT_KEYS = %i[probability html_probability periodic interval output ad_prefix selection store report_page
+                     ascii_only house_ads color].freeze
     KNOWN_KEYS = (DIRECT_KEYS + %i[ads ads_file]).freeze
 
     def initialize
       @probability = 0.001
+      @html_probability = 0.05
       @periodic = false
       @interval = 30
       @output = $stdout

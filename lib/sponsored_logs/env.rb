@@ -14,6 +14,7 @@ module SponsoredLogs
     #
     OPTION_MAP = {
       "SPONSORED_LOGS_PROBABILITY" => [:probability, ->(v) { Float(v) }],
+      "SPONSORED_LOGS_HTML_PROBABILITY" => [:html_probability, ->(v) { Float(v) }],
       "SPONSORED_LOGS_INTERVAL" => [:interval, ->(v) { Float(v) }],
       "SPONSORED_LOGS_PERIODIC" => [:periodic, ->(v) { truthy?(v) }],
       "SPONSORED_LOGS_PREFIX" => [:ad_prefix, ->(v) { v }],
