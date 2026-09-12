@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The page is inventory now.** For too long the exchange sold one surface: log lines. HTML responses now carry host-read `[AD]` placements in their comment layer (`<!-- [AD] ... -->`), drawing from the same campaigns and settling to the same ledger as your logs. One book of business, two surfaces. New `html_probability` config (default `0.05`, its own dial because a page render is a rarer, higher-value event than a per-line log impression) and `SPONSORED_LOGS_HTML_PROBABILITY` env var; in Rails the controller surface wires itself on and stays dark until sponsoring is active. Brand safety holds: a crafted creative can't break out of its comment and into live markup, since every `--` run is defused so no placement escapes its slot. This is tier 1, the page; the per-component surface is next ([#23](https://github.com/sponsoredlogs/sponsored_logs/pull/23))
+
 ## [0.4.0] - 2026-09-10
 
 ### Added
